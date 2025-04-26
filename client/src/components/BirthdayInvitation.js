@@ -13,6 +13,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   const [locationDetails, setLocationDetails] = useState(null);
   const [needsAccommodation, setNeedsAccommodation] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   
   // Informations de l'événement - à personnaliser
   const eventInfo = {
@@ -172,27 +173,83 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       
       {/* Navigation */}
       <nav className="bg-amber-800 bg-opacity-90 text-amber-50 p-4 sticky top-0 z-10 backdrop-blur-sm">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Anniversaire de {eventInfo.name}</h1>
-          <div className="flex space-x-4">
+        <div className="container mx-auto">
+          {/* Titre et menu burger en mobile */}
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl md:text-2xl font-bold truncate">
+              Anniversaire de {eventInfo.name}
+            </h1>
+            
+            {/* Menu hamburger sur mobile */}
             <button 
-              onClick={() => setCurrentSection('invitation')}
-              className={`px-3 py-1 rounded-lg transition ${currentSection === 'invitation' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+              className="md:hidden rounded-lg p-2 hover:bg-amber-700"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" 
+                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            
+            {/* Navigation desktop */}
+            <div className="hidden md:flex space-x-4">
+              <button 
+                onClick={() => setCurrentSection('invitation')}
+                className={`px-3 py-1 rounded-lg transition ${currentSection === 'invitation' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+                Invitation
+              </button>
+              <button 
+                onClick={() => setCurrentSection('infos')}
+                className={`px-3 py-1 rounded-lg transition ${currentSection === 'infos' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+                Infos pratiques
+              </button>
+              <button 
+                onClick={() => setCurrentSection('rsvp')}
+                className={`px-3 py-1 rounded-lg transition ${currentSection === 'rsvp' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+                RSVP
+              </button>
+              <button 
+                onClick={() => setCurrentSection('photos')}
+                className={`px-3 py-1 rounded-lg transition ${currentSection === 'photos' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+                Photos
+              </button>
+            </div>
+          </div>
+          
+          {/* Menu mobile déroulant */}
+          <div className={`mt-3 grid grid-cols-2 gap-2 md:hidden ${menuOpen ? 'block' : 'hidden'}`}>
+            <button 
+              onClick={() => {
+                setCurrentSection('invitation');
+                setMenuOpen(false);
+              }}
+              className={`px-3 py-2 rounded-lg transition text-center ${currentSection === 'invitation' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
               Invitation
             </button>
             <button 
-              onClick={() => setCurrentSection('infos')}
-              className={`px-3 py-1 rounded-lg transition ${currentSection === 'infos' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+              onClick={() => {
+                setCurrentSection('infos');
+                setMenuOpen(false);
+              }}
+              className={`px-3 py-2 rounded-lg transition text-center ${currentSection === 'infos' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
               Infos pratiques
             </button>
             <button 
-              onClick={() => setCurrentSection('rsvp')}
-              className={`px-3 py-1 rounded-lg transition ${currentSection === 'rsvp' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+              onClick={() => {
+                setCurrentSection('rsvp');
+                setMenuOpen(false);
+              }}
+              className={`px-3 py-2 rounded-lg transition text-center ${currentSection === 'rsvp' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
               RSVP
             </button>
             <button 
-              onClick={() => setCurrentSection('photos')}
-              className={`px-3 py-1 rounded-lg transition ${currentSection === 'photos' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
+              onClick={() => {
+                setCurrentSection('photos');
+                setMenuOpen(false);
+              }}
+              className={`px-3 py-2 rounded-lg transition text-center ${currentSection === 'photos' ? 'bg-amber-600' : 'hover:bg-amber-700'}`}>
               Photos
             </button>
           </div>
