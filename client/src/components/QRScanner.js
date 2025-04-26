@@ -174,7 +174,7 @@ const QRScanner = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 p-4 flex flex-col">
       <header className="bg-amber-800 text-white p-4 rounded-lg mb-6">
-        <h1 className="text-xl font-bold text-center">Anniversaire de Thomas</h1>
+        <h1 className="text-xl font-bold text-center">Anniversaire de Mitch</h1>
       </header>
       
       <main className="flex-1 flex flex-col items-center justify-center relative">

@@ -2,15 +2,21 @@
     "name": "invitation-server",
     "version": "1.0.0",
     "description": "Backend pour le site d'invitation d'anniversaire",
-    "main": "server.js",
+    "main": "server/server.js",
     "scripts": {
-        "start": "node server.js",
-        "dev": "nodemon server.js"
+        "start": "node server/server.js",
+        "dev": "nodemon server/server.js",
+        "client": "cd client && npm start",
+        "build": "cd client && npm run build",
+        "render-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client"
     },
     "keywords": [
         "api",
         "express",
-        "mongodb"
+        "mongodb",
+        "invitation", 
+        "anniversaire", 
+        "pwa"
     ],
     "author": "Pinfada",
     "license": "MIT",

@@ -74,7 +74,7 @@ const QRCodePreview = () => {
         </head>
         <body>
           <div class="card">
-            <div class="title">Invitation - Anniversaire de Thomas</div>
+            <div class="title">Invitation - Anniversaire de Mitch</div>
             <div><strong>${selectedGuest.name}</strong></div>
             <div class="qr-code">
               <img src="${selectedGuest.qrCodeUrl}" alt="QR Code" style="width: 200px; height: 200px;">

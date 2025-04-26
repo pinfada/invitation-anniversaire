@@ -39,40 +39,66 @@ function App() {
   const fetchGuestData = async (code) => {
     setIsLoading(true);
     try {
-      // Dans une implémentation réelle, ce serait un appel API
-      // const response = await fetch(`/api/guests/verify/${code}`);
-      // const data = await response.json();
+      // Appel réel à l'API
+      const response = await fetch(`/api/guests/verify/${code}`);
       
-      // Pour la démo, simuler une réponse du serveur
-      setTimeout(() => {
-        const mockData = {
-          success: true,
-          guest: {
-            name: "Marie Dupont",
-            email: "marie@example.com",
-            personalWelcomeMessage: "Bonjour Marie ! Nous sommes ravis de te voir à notre fête. N'oublie pas d'apporter ton maillot de bain pour la piscine !",
-            hasCheckedIn: false,
-            attending: null
-          }
-        };
-        
-        if (mockData.success) {
-          setGuestData(mockData.guest);
-        }
+      // Vérifier si la réponse est ok (statut 200-299)
+      if (!response.ok) {
+        // Si le serveur répond avec une erreur (404, 500, etc.)
+        console.error('Erreur serveur:', response.status);
+        setGuestData(null);
         setIsLoading(false);
-      }, 1000);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setGuestData(data.guest);
+        // Stocker les informations dans localStorage pour les sessions futures
+        localStorage.setItem('guestData', JSON.stringify(data.guest));
+      } else {
+        // Si l'API répond avec success: false
+        console.warn('Code invalide ou expiré:', data.message);
+        setGuestData(null);
+        // Supprimer les données locales potentiellement obsolètes
+        localStorage.removeItem('guestData');
+        // Rediriger vers la page d'erreur
+        window.location.href = '/invalid-code';
+        return; // Arrêter l'exécution de la fonction
+      }
     } catch (error) {
       console.error('Erreur lors de la récupération des données invité:', error);
+      
+      // Pour le développement, simuler une réponse du serveur
+      console.log("Mode développement : utilisation de données fictives");
+      
+      const mockData = {
+        success: true,
+        guest: {
+          name: "Marie Dupont",
+          email: "marie@example.com",
+          personalWelcomeMessage: "Bonjour Marie ! Nous sommes ravis de te voir à notre fête. N'oublie pas d'apporter ton maillot de bain pour la piscine !",
+          hasCheckedIn: false,
+          attending: null
+        }
+      };
+      
+      setGuestData(mockData.guest);
+      localStorage.setItem('guestData', JSON.stringify(mockData.guest));
+    } finally {
       setIsLoading(false);
     }
   };
   
   // Mise à jour des données de l'invité (par exemple après RSVP)
   const updateGuestData = (newData) => {
-    setGuestData(prev => ({
-      ...prev,
-      ...newData
-    }));
+    setGuestData(prev => {
+      const updated = { ...prev, ...newData };
+      // Mettre à jour également dans localStorage
+      localStorage.setItem('guestData', JSON.stringify(updated));
+      return updated;
+    });
   };
   
   return (
@@ -82,11 +108,20 @@ function App() {
         <Route 
           path="/" 
           element={
-            <BirthdayInvitation 
-              guestData={guestData} 
-              updateGuestData={updateGuestData}
-              isLoading={isLoading}
-            />
+            isLoading ? (
+              <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 flex items-center justify-center">
+                <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-700 mx-auto mb-4"></div>
+                  <p className="text-amber-800">Chargement des informations...</p>
+                </div>
+              </div>
+            ) : (
+              <BirthdayInvitation 
+                guestData={guestData} 
+                updateGuestData={updateGuestData}
+                isLoading={isLoading}
+              />
+            )
           } 
         />
         
@@ -101,6 +136,29 @@ function App() {
         
         {/* Page Prévisualisation et gestion des QR codes des invités */}
         <Route path="/admin/qr-preview" element={<QRCodePreview />} />
+        
+        {/* Page d'erreur pour les codes invalides */}
+        <Route 
+          path="/invalid-code" 
+          element={
+            <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 flex items-center justify-center p-4">
+              <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-md">
+                <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold text-amber-800 mb-4">Code QR invalide</h2>
+                <p className="text-amber-700 mb-6">
+                  Le code QR que vous avez scanné n'est pas valide ou a expiré. 
+                  Veuillez vérifier que vous utilisez bien le code qui vous a été fourni.
+                </p>
+                <a 
+                  href="/"
+                  className="inline-block px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition"
+                >
+                  Retour à l'accueil
+                </a>
+              </div>
+            </div>
+          } 
+        />
         
         {/* Redirection de la page avec code QR vers la page d'accueil */}
         <Route

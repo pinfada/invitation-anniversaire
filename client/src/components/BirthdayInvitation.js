@@ -459,7 +459,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                           className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
                         />
                         <span className="ml-2 text-amber-700">
-                          Je souhaite rester pour le weekend complet (hébergement sur place)
+                          Je souhaite rester l'intégralité du séjour (hébergement sur place)
                         </span>
                       </label>
                     </div>
@@ -524,7 +524,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       <footer className="bg-amber-800 text-amber-50 py-6 mt-12">
         <div className="container mx-auto px-4 text-center">
           <p>Nous avons hâte de célébrer ce moment avec vous !</p>
-          <p className="mt-2 text-amber-200">Pour toute question : contact@example.com</p>
+          <p className="mt-2 text-amber-200">Pour toute question : michel.booh@gmail.com</p>
           
           <div className="mt-6 pt-4 border-t border-amber-700">
             <a 
