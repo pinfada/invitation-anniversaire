@@ -227,9 +227,22 @@ app.get('/api/photos', async (req, res) => {
 
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
+  // Servir les fichiers statiques
   app.use(express.static(path.join(__dirname, '../client/build')));
   
-  app.get('*', (req, res) => {
+  // Route pour la page d'accueil
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  });
+  
+  // Middleware pour toutes les autres routes non-API
+  app.use((req, res, next) => {
+    // Ne pas intercepter les routes API
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    
+    // Renvoyer le fichier index.html pour toutes les autres routes
     res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
   });
 }
