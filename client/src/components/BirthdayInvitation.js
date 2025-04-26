@@ -16,9 +16,9 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   
   // Informations de l'événement - à personnaliser
   const eventInfo = {
-    name: "Thomas",
-    age: 30,
-    date: "15 Juin 2025",
+    name: "Mitch",
+    age: 41,
+    date: "11 au 14 Août 2025",
     time: "18h00",
     location: hasLocationAccess ? (locationDetails?.location?.name + ", " + locationDetails?.location?.address) : "Lieu révélé après confirmation",
     rsvpDeadline: "1 Juin 2025"

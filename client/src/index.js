@@ -12,6 +12,7 @@ root.render(
 
 // Service Worker pour PWA
 if ('serviceWorker' in navigator) {
+  // Attendre que la page soit complètement chargée
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
       .then(registration => {
@@ -21,4 +22,6 @@ if ('serviceWorker' in navigator) {
         console.error('Erreur lors de l\'enregistrement du Service Worker:', error);
       });
   });
+} else {
+  console.log('Les Service Workers ne sont pas supportés par ce navigateur.');
 }

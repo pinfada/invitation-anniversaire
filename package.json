@@ -4,20 +4,27 @@
     "description": "Site d'invitation pour un anniversaire avec QR codes personnalisés",
     "main": "server/server.js",
     "scripts": {
-      "start": "node server/server.js",
-      "server": "nodemon server/server.js",
-      "client": "cd client && npm start",
-      "dev": "concurrently \"npm run server\" \"npm run client\"",
-      "build": "cd client && npm run build",
-      "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+        "start": "node server/server.js",
+        "server": "nodemon server/server.js",
+        "client": "cd client && npm start",
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "build": "cd client && npm run build",
+        "install-all": "npm install && cd client && npm install && cd ../server && npm install"
     },
-    "keywords": ["invitation", "anniversaire", "qrcode", "pwa"],
+    "keywords": [
+        "invitation",
+        "anniversaire",
+        "qrcode",
+        "pwa"
+    ],
     "author": "Votre Nom",
     "license": "MIT",
     "dependencies": {
-      "concurrently": "^8.2.0"
+        "concurrently": "^8.2.0",
+        "dotenv": "^16.5.0",
+        "mongoose": "^8.14.0"
     },
     "devDependencies": {
-      "nodemon": "^3.0.1"
+        "nodemon": "^3.0.1"
     }
-  }
+}

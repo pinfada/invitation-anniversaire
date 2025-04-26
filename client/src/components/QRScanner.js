@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, RefreshCw, UserCheck, Home } from 'lucide-react';
+import jsQR from 'jsqr';
 
 const QRScanner = () => {
   const [scanning, setScanning] = useState(false);
