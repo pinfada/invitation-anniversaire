@@ -1,71 +1,49 @@
 /* eslint-disable no-restricted-globals */
-/* global clients */
+/* global workbox */
 
-// service-worker.js
-const CACHE_NAME = 'birthday-invitation-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/static/js/main.chunk.js',
-  '/static/js/0.chunk.js',
-  '/static/js/bundle.js',
-  '/manifest.json',
-  '/favicon.ico',
-  '/logo192.png',
-  '/logo512.png'
-];
+// Cette ligne est nécessaire pour que Workbox injecte le précache manifeste
+// NE PAS LA SUPPRIMER
+self.__WB_MANIFEST;
 
-// Installation du service worker
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Cache ouvert');
-      return cache.addAll(urlsToCache);
-    })
-  );
-});
+const { registerRoute } = workbox.routing;
+const { CacheFirst, NetworkFirst, StaleWhileRevalidate } = workbox.strategies;
+const { CacheableResponsePlugin } = workbox.cacheableResponse;
+const { ExpirationPlugin } = workbox.expiration;
 
-// Activation du service worker
-self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-          return null; // Pour éviter les promesses undefined
-        })
-      );
-    })
-  );
-});
+// Cache des pages et du HTML
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'pages-cache',
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [200],
+      }),
+    ],
+  })
+);
 
-// Stratégie de cache: Network First avec fallback sur le cache
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Vérifier si la réponse est valide
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        
-        // Cloner la réponse pour pouvoir la mettre en cache et la retourner
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request);
-      })
-  );
-});
+// Cache des ressources statiques (JS, CSS, images)
+registerRoute(
+  ({ request }) =>
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'image',
+  new StaleWhileRevalidate({
+    cacheName: 'static-resources',
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [200],
+      }),
+      new ExpirationPlugin({
+        maxEntries: 50,
+        maxAgeSeconds: 60 * 60 * 24 * 30, // 30 jours
+      }),
+    ],
+  })
+);
 
-// Gestion des notifications push (pour les alertes de nouvelles photos)
+// Gestion des notifications push
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   
@@ -93,20 +71,17 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  // Vérifier si une URL est disponible
   const url = event.notification.data && event.notification.data.url 
     ? event.notification.data.url 
     : '/';
     
   event.waitUntil(
     clients.matchAll({type: 'window'}).then(windowClients => {
-      // Vérifier si une fenêtre/onglet est déjà ouvert et le focus
       for (const client of windowClients) {
         if (client.url === url && 'focus' in client) {
           return client.focus();
         }
       }
-      // Ouvrir une nouvelle fenêtre si nécessaire
       if (clients.openWindow) {
         return clients.openWindow(url);
       }
