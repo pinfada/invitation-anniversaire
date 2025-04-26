@@ -4,6 +4,7 @@
     "description": "Site d'invitation pour un anniversaire avec QR codes personnalisés",
     "main": "server/server.js",
     "scripts": {
+        "prestart": "npm install cors express mongoose dotenv path body-parser qrcode jsonwebtoken bcryptjs multer",
         "start": "node server/server.js",
         "server": "nodemon server/server.js",
         "client": "cd client && npm start",
@@ -21,10 +22,17 @@
     "author": "Pinfada",
     "license": "MIT",
     "dependencies": {
+        "bcryptjs": "^3.0.2",
+        "body-parser": "^2.2.0",
         "concurrently": "^8.2.0",
+        "cors": "^2.8.5",
         "dotenv": "^16.5.0",
         "express": "^5.1.0",
-        "mongoose": "^8.14.0"
+        "jsonwebtoken": "^9.0.2",
+        "mongoose": "^8.14.0",
+        "multer": "^1.4.5-lts.2",
+        "path": "^0.12.7",
+        "qrcode": "^1.5.4"
     },
     "devDependencies": {
         "nodemon": "^3.0.1"
