@@ -1,3 +1,6 @@
+/* eslint-disable no-restricted-globals */
+/* global clients */
+
 const CACHE_NAME = 'birthday-invitation-v1';
 const urlsToCache = [
   '/',
@@ -28,6 +31,7 @@ self.addEventListener('activate', (event) => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
             return caches.delete(cacheName);
           }
+          return null;
         })
       );
     })
