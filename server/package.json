@@ -7,16 +7,12 @@
         "start": "node server/server.js",
         "dev": "nodemon server/server.js",
         "client": "cd client && npm start",
-        "build": "cd client && npm run build",
-        "render-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client"
+        "build": "cd client && npm run build"
     },
     "keywords": [
         "api",
         "express",
-        "mongodb",
-        "invitation", 
-        "anniversaire", 
-        "pwa"
+        "mongodb"
     ],
     "author": "Pinfada",
     "license": "MIT",
