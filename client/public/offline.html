@@ -1,0 +1,113 @@
+<!-- client/public/offline.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anniversaire - Mode Hors Ligne</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #4a4a4a;
+    }
+    .container {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+      max-width: 90%;
+      width: 450px;
+    }
+    h1 {
+      color: #E4A11B;
+      margin-top: 0;
+    }
+    .icon {
+      font-size: 64px;
+      margin-bottom: 1rem;
+    }
+    .button {
+      background-color: #E4A11B;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      margin-top: 1.5rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .button:hover {
+      background-color: #c88c18;
+    }
+    .features {
+      text-align: left;
+      margin-top: 1.5rem;
+    }
+    .features h3 {
+      margin-bottom: 0.5rem;
+    }
+    .features ul {
+      margin-top: 0.5rem;
+      padding-left: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📶</div>
+    <h1>Vous êtes hors ligne</h1>
+    <p>Il semble que vous n'ayez pas de connexion à Internet actuellement.</p>
+    
+    <div class="features">
+      <h3>Vous pouvez toujours :</h3>
+      <ul>
+        <li>Consulter les informations de l'événement</li>
+        <li>Voir votre invitation personnelle</li>
+        <li>Préparer votre réponse RSVP</li>
+        <li>Visualiser les photos déjà chargées</li>
+      </ul>
+      
+      <h3>Vous aurez besoin d'une connexion pour :</h3>
+      <ul>
+        <li>Envoyer votre réponse RSVP</li>
+        <li>Partager de nouvelles photos</li>
+        <li>Scanner un QR code</li>
+        <li>Voir les nouvelles photos partagées</li>
+      </ul>
+    </div>
+    
+    <a href="/" class="button">Réessayer</a>
+  </div>
+  
+  <script>
+    // Vérifier périodiquement la connexion
+    setInterval(() => {
+      if (navigator.onLine) {
+        window.location.reload();
+      }
+    }, 5000);
+    
+    // Rediriger vers la page d'accueil si la connexion est rétablie
+    window.addEventListener('online', () => {
+      window.location.href = '/';
+    });
+    
+    document.querySelector('.button').addEventListener('click', (e) => {
+      e.preventDefault();
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>

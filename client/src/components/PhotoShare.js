@@ -1,11 +1,13 @@
 // PhotoShare.js - Composant pour la PWA de partage de photos
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 
 const PhotoShare = () => {
   const [photos, setPhotos] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef(null);
   
   // Simuler le chargement des photos existantes depuis un backend
@@ -30,20 +32,53 @@ const PhotoShare = () => {
     fileInputRef.current.click();
   };
   
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPreviewPhoto({
-        id: `temp-${Date.now()}`,
-        src: reader.result,
-        timestamp: new Date(),
-        user: 'Moi'
-      });
-    };
-    reader.readAsDataURL(file);
+    try {
+      setCompressionProgress(10);
+      
+      // Options de compression
+      const options = {
+        maxSizeMB: 1,             // Max 1MB
+        maxWidthOrHeight: 1200,   // Redimensionnement préservant ratio
+        useWebWorker: true,       // Utiliser un thread séparé
+        onProgress: (p) => setCompressionProgress(10 + Math.round(p * 80))
+      };
+      
+      // Compression de l'image avant preview
+      const compressedFile = await imageCompression(file, options);
+      setCompressionProgress(95);
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPreviewPhoto({
+          id: `temp-${Date.now()}`,
+          src: reader.result,
+          timestamp: new Date(),
+          user: 'Moi',
+          originalSize: file.size,
+          compressedSize: compressedFile.size
+        });
+        setCompressionProgress(0);
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (err) {
+      console.error("Erreur lors de la compression:", err);
+      setCompressionProgress(0);
+      // Fallback sur l'approche d'origine en cas d'erreur
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPreviewPhoto({
+          id: `temp-${Date.now()}`,
+          src: reader.result,
+          timestamp: new Date(),
+          user: 'Moi'
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
   
   const handleUpload = async () => {
@@ -64,6 +99,7 @@ const PhotoShare = () => {
     setPreviewPhoto(null);
   };
   
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 p-4">
       <header className="bg-amber-800 text-white p-4 rounded-lg mb-6">
@@ -78,6 +114,20 @@ const PhotoShare = () => {
         className="hidden" 
         capture="environment"
       />
+
+      {compressionProgress > 0 && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-4 rounded-lg w-64">
+            <p className="text-center mb-2">Optimisation de l'image...</p>
+            <div className="h-2 bg-gray-200 rounded-full">
+              <div 
+                className="h-full bg-amber-600 rounded-full transition-all duration-300" 
+                style={{width: `${compressionProgress}%`}}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
       {previewPhoto ? (
         <div className="bg-white p-4 rounded-lg shadow-lg mb-6">

@@ -1,27 +1,18 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+// Créer une racine React
+const root = createRoot(document.getElementById('root'));
+
+// Rendre l'application dans cette racine
 root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
 
-// Service Worker pour PWA
-if ('serviceWorker' in navigator) {
-  // Attendre que la page soit complètement chargée
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('Service Worker enregistré avec succès:', registration.scope);
-      })
-      .catch(error => {
-        console.error('Erreur lors de l\'enregistrement du Service Worker:', error);
-      });
-  });
-} else {
-  console.log('Les Service Workers ne sont pas supportés par ce navigateur.');
-}
+// Enregistrer le Service Worker pour les fonctionnalités PWA
+serviceWorkerRegistration.register();
