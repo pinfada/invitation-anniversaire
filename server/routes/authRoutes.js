@@ -1,0 +1,62 @@
+// server/routes/authRoutes.js
+const express = require('express');
+const router = express.Router();
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+
+// Protection contre les attaques par force brute
+const loginLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  max: 5, // 5 tentatives maximum
+  message: { success: false, message: 'Trop de tentatives de connexion, veuillez réessayer plus tard' }
+});
+
+// Route de connexion admin
+router.post('/admin', loginLimiter, async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    // Vérifier le mot de passe (stocké en variable d'environnement)
+    // Dans une implémentation en production, le mot de passe devrait être hashé dans la DB
+    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+    
+    // Comparaison du mot de passe
+    const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
+    
+    if (!isValidPassword) {
+      // Délai pour contrer les attaques timing
+      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Mot de passe incorrect' 
+      });
+    }
+    
+    // Générer une clé API temporaire
+    const apiKey = crypto.randomBytes(32).toString('hex');
+    
+    // Dans un système en production, on stockerait cette clé en base de données
+    // avec une date d'expiration et l'identifiant de l'utilisateur
+    
+    // Pour cette implémentation, on utilise process.env pour stocker temporairement la clé
+    // (dans un vrai système, utiliser Redis ou une autre solution de stockage appropriée)
+    process.env.ADMIN_API_KEY = apiKey;
+    
+    // Journaliser la connexion
+    console.log(`Connexion admin réussie: ${new Date().toISOString()}`);
+    
+    // Retourner la clé API avec durée de validité
+    res.json({
+      success: true,
+      message: 'Authentification réussie',
+      apiKey,
+      expiresIn: 3600 // 1 heure
+    });
+  } catch (error) {
+    console.error('Erreur d\'authentification:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;

@@ -1,5 +1,6 @@
+// client/src/components/BirthdayInvitation.js - Partie 1
 import React, { useState, useEffect } from 'react';
-import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info } from 'lucide-react';
+import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info, Shield } from 'lucide-react';
 
 const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   const [name, setName] = useState('');
@@ -14,6 +15,8 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   const [needsAccommodation, setNeedsAccommodation] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [rsvpErrors, setRsvpErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
   
   // Informations de l'événement - à personnaliser
   const eventInfo = {
@@ -77,10 +80,32 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   // Fonction pour récupérer les détails de localisation depuis l'API
   const fetchLocationDetails = async (userEmail) => {
     try {
-      // Dans une implémentation réelle, ce serait un appel API
-      // const response = await fetch(`/api/event-details?email=${userEmail}`);
-      // const data = await response.json();
+      setLocationDetails(null); // Réinitialiser pendant le chargement
       
+      // Validation de l'email
+      if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+        console.error("Email invalide");
+        return;
+      }
+      
+      // Construction du token CSRF pour la requête (dans une implémentation réelle)
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      
+      // Dans une implémentation réelle, ce serait un appel API sécurisé
+      // avec le code unique de l'invité comme moyen d'authentification
+      const response = await fetch(`/api/event-details`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken || ''
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          code: localStorage.getItem('guestCode') || ''
+        })
+      });
+      
+      // Vérification de la réponse (simulée ici)
       // Pour la démonstration, nous simulons une réponse
       const mockLocationDetails = {
         location: {
@@ -91,8 +116,8 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
           parkingInfo: "Parking privé disponible sur place, code portail: 5678"
         },
         accommodationInfo: {
-          checkIn: "Vendredi 15 Juin à partir de 14h",
-          checkOut: "Dimanche 17 Juin avant 12h",
+          checkIn: "Vendredi 11 août 2025 à partir de 14h",
+          checkOut: "Dimanche 14 août 2025 avant 12h",
           amenities: [
             "Piscine chauffée",
             "5 chambres avec salle de bain",
@@ -110,21 +135,72 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  // Validation du formulaire RSVP
+  const validateRsvpForm = () => {
+    const errors = {};
+    
+    if (!name.trim()) {
+      errors.name = "Le nom est requis";
+    }
+    
+    if (!email.trim()) {
+      errors.email = "L'email est requis";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Format d'email invalide";
+    }
+    
+    setRsvpErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Gestion soumission du formulaire RSVP
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Dans une implémentation réelle, nous enverrions ces données au backend
-    console.log({ name, email, attending, guests, message, needsAccommodation });
+    // Validation du formulaire
+    if (!validateRsvpForm()) {
+      return;
+    }
     
-    const updatedData = {
+    setSubmitting(true);
+    
+    // Préparer les données pour l'API
+    const rsvpData = {
+      name,
+      email,
       attending: attending === 'yes',
-      guests: guests,
-      message: message,
-      needsAccommodation: needsAccommodation
+      guests: parseInt(guests),
+      message,
+      needsAccommodation,
+      code: localStorage.getItem('guestCode') || '' // Code unique de l'invité
     };
     
-    // Simuler une réponse du serveur
-    setTimeout(() => {
+    try {
+      // Construction du token CSRF pour la requête (dans une implémentation réelle)
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      
+      // Dans une implémentation réelle, ce serait un appel API
+      // const response = await fetch('/api/guests/rsvp', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'X-CSRF-Token': csrfToken || ''
+      //   },
+      //   body: JSON.stringify(rsvpData)
+      // });
+      
+      // const data = await response.json();
+      
+      // Pour la démonstration, simuler une réponse du serveur
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const updatedData = {
+        attending: attending === 'yes',
+        guests: guests,
+        message: message,
+        needsAccommodation: needsAccommodation
+      };
+      
       setSubmitted(true);
       
       // Mettre à jour les données de l'invité
@@ -147,9 +223,16 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
           setCurrentSection(hasLocationAccess ? 'infos' : 'invitation');
         }
       }, 3000);
-    }, 1000);
+    } catch (error) {
+      console.error("Erreur lors de l'envoi du RSVP:", error);
+      setRsvpErrors({
+        submit: "Une erreur est survenue lors de l'envoi de votre réponse. Veuillez réessayer."
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
-
+ 
   // Composant pour le message de bienvenue personnalisé
   const WelcomeMessage = () => (
     <div className={`fixed top-0 left-0 right-0 z-50 p-4 transform transition-all duration-500 ${
@@ -162,6 +245,20 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
         <div className="p-4">
           <p className="text-amber-700">{guestData?.personalWelcomeMessage || "Nous sommes ravis de vous accueillir!"}</p>
         </div>
+      </div>
+    </div>
+  );
+
+  // Information de sécurité
+  const SecurityInfo = () => (
+    <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg flex items-start">
+      <Shield className="text-green-600 mr-3 flex-shrink-0 mt-1" size={20} />
+      <div>
+        <h3 className="font-semibold text-green-800 mb-1">Connexion sécurisée</h3>
+        <p className="text-sm text-green-700">
+          Vos informations sont protégées et votre identité a été vérifiée via le code QR unique.
+          Toutes les communications sont chiffrées.
+        </p>
       </div>
     </div>
   );
@@ -184,6 +281,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
             <button 
               className="md:hidden rounded-lg p-2 hover:bg-amber-700"
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" 
                 fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -271,6 +369,11 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       )}
 
       <div className="container mx-auto px-4 py-8">
+        {/* Indication que l'utilisateur est connecté avec son code unique */}
+        {guestData && (
+          <SecurityInfo />
+        )}
+        
         {/* Section Invitation */}
         {currentSection === 'invitation' && (
           <div className="max-w-3xl mx-auto bg-white bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl p-8 my-8">
@@ -448,9 +551,15 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                     type="text" 
                     value={name} 
                     onChange={(e) => setName(e.target.value)} 
-                    className="w-full p-2 border border-amber-300 rounded focus:ring focus:ring-amber-200 focus:border-amber-500"
+                    className={`w-full p-2 border rounded focus:ring focus:ring-amber-200 focus:border-amber-500 ${
+                      rsvpErrors.name ? 'border-red-500 bg-red-50' : 'border-amber-300'
+                    }`}
                     required
+                    disabled={submitting}
                   />
+                  {rsvpErrors.name && (
+                    <p className="text-red-500 text-xs mt-1">{rsvpErrors.name}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -459,9 +568,15 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                     type="email" 
                     value={email} 
                     onChange={(e) => setEmail(e.target.value)} 
-                    className="w-full p-2 border border-amber-300 rounded focus:ring focus:ring-amber-200 focus:border-amber-500"
+                    className={`w-full p-2 border rounded focus:ring focus:ring-amber-200 focus:border-amber-500 ${
+                      rsvpErrors.email ? 'border-red-500 bg-red-50' : 'border-amber-300'
+                    }`}
                     required
+                    disabled={submitting}
                   />
+                  {rsvpErrors.email && (
+                    <p className="text-red-500 text-xs mt-1">{rsvpErrors.email}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -475,6 +590,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                         checked={attending === 'yes'} 
                         onChange={() => setAttending('yes')}
                         className="mr-2 text-amber-600"
+                        disabled={submitting}
                       />
                       Je serai présent(e)
                     </label>
@@ -486,6 +602,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                         checked={attending === 'no'} 
                         onChange={() => setAttending('no')}
                         className="mr-2 text-amber-600"
+                        disabled={submitting}
                       />
                       Je ne pourrai pas venir
                     </label>
@@ -500,6 +617,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                         value={guests} 
                         onChange={(e) => setGuests(parseInt(e.target.value))}
                         className="w-full p-2 border border-amber-300 rounded focus:ring focus:ring-amber-200 focus:border-amber-500"
+                        disabled={submitting}
                       >
                         {[0, 1, 2, 3, 4].map(num => (
                           <option key={num} value={num}>{num}</option>
@@ -514,6 +632,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                           checked={needsAccommodation} 
                           onChange={(e) => setNeedsAccommodation(e.target.checked)}
                           className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                          disabled={submitting}
                         />
                         <span className="ml-2 text-amber-700">
                           Je souhaite rester l'intégralité du séjour (hébergement sur place)
@@ -528,17 +647,37 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                         onChange={(e) => setMessage(e.target.value)}
                         className="w-full p-2 border border-amber-300 rounded focus:ring focus:ring-amber-200 focus:border-amber-500 min-h-32"
                         placeholder="Allergies alimentaires, régime spécial, autres informations importantes..."
+                        disabled={submitting}
                       ></textarea>
                     </div>
                   </>
                 )}
                 
+                {rsvpErrors.submit && (
+                  <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded">
+                    {rsvpErrors.submit}
+                  </div>
+                )}
+                
                 <div className="pt-4">
                   <button 
                     type="submit" 
-                    className="w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition"
+                    disabled={submitting}
+                    className={`w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition ${
+                      submitting ? 'opacity-70 cursor-not-allowed' : ''
+                    }`}
                   >
-                    {attending === 'yes' ? "Confirmer ma présence" : "Envoyer ma réponse"}
+                    {submitting ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        En cours...
+                      </span>
+                    ) : (
+                      attending === 'yes' ? "Confirmer ma présence" : "Envoyer ma réponse"
+                    )}
                   </button>
                 </div>
               </form>

@@ -1,4 +1,4 @@
-// client/src/App.js
+// client/src/App.js (mise à jour)
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import BirthdayInvitation from './components/BirthdayInvitation';
@@ -6,6 +6,9 @@ import PhotoShare from './components/PhotoShare';
 import QRScanner from './components/QRScanner';
 import GuestManager from './components/admin/GuestManager';
 import QRCodePreview from './components/admin/QRCodePreview';
+import AdminLogin from './pages/AdminLogin';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   const [guestCode, setGuestCode] = useState(null);
@@ -102,74 +105,99 @@ function App() {
   };
   
   return (
+    
     <Router>
-      <Routes>
-        {/* Page d'accueil - Invitation d'anniversaire */}
-        <Route 
-          path="/" 
-          element={
-            isLoading ? (
-              <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 flex items-center justify-center">
-                <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-700 mx-auto mb-4"></div>
-                  <p className="text-amber-800">Chargement des informations...</p>
+      <AuthProvider>
+        <Routes>
+          {/* Page d'accueil - Invitation d'anniversaire */}
+          <Route 
+            path="/" 
+            element={
+              isLoading ? (
+                <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 flex items-center justify-center">
+                  <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-700 mx-auto mb-4"></div>
+                    <p className="text-amber-800">Chargement des informations...</p>
+                  </div>
+                </div>
+              ) : (
+                <BirthdayInvitation 
+                  guestData={guestData} 
+                  updateGuestData={updateGuestData}
+                  isLoading={isLoading}
+                />
+              )
+            } 
+          />
+          
+          {/* Scanner QR code */}
+          <Route path="/scan" element={<QRScanner />} />
+          
+          {/* Partage de photos */}
+          <Route path="/photos" element={<PhotoShare guestData={guestData} />} />
+          
+          {/* Routes Admin avec protection */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedAdminRoute>
+                <Navigate to="/admin/guests" replace />
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/guests"
+            element={
+              <ProtectedAdminRoute>
+                <GuestManager />
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/qrcodes"
+            element={
+              <ProtectedAdminRoute>
+                <QRCodePreview />
+              </ProtectedAdminRoute>
+            }
+          />
+          
+          {/* Page d'erreur pour les codes invalides */}
+          <Route 
+            path="/invalid-code" 
+            element={
+              <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 flex items-center justify-center p-4">
+                <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-md">
+                  <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                  <h2 className="text-2xl font-bold text-amber-800 mb-4">Code QR invalide</h2>
+                  <p className="text-amber-700 mb-6">
+                    Le code QR que vous avez scanné n'est pas valide ou a expiré. 
+                    Veuillez vérifier que vous utilisez bien le code qui vous a été fourni.
+                  </p>
+                  <a 
+                    href="/"
+                    className="inline-block px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition"
+                  >
+                    Retour à l'accueil
+                  </a>
                 </div>
               </div>
-            ) : (
-              <BirthdayInvitation 
-                guestData={guestData} 
-                updateGuestData={updateGuestData}
-                isLoading={isLoading}
-              />
-            )
-          } 
-        />
-        
-        {/* Scanner QR code */}
-        <Route path="/scan" element={<QRScanner />} />
-        
-        {/* Partage de photos */}
-        <Route path="/photos" element={<PhotoShare guestData={guestData} />} />
-        
-        {/* Page d'administration pour gérer les invités et QR codes */}
-        <Route path="/admin" element={<GuestManager />} />
-        
-        {/* Page Prévisualisation et gestion des QR codes des invités */}
-        <Route path="/admin/qr-preview" element={<QRCodePreview />} />
-        
-        {/* Page d'erreur pour les codes invalides */}
-        <Route 
-          path="/invalid-code" 
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 flex items-center justify-center p-4">
-              <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-md">
-                <div className="text-red-500 text-5xl mb-4">⚠️</div>
-                <h2 className="text-2xl font-bold text-amber-800 mb-4">Code QR invalide</h2>
-                <p className="text-amber-700 mb-6">
-                  Le code QR que vous avez scanné n'est pas valide ou a expiré. 
-                  Veuillez vérifier que vous utilisez bien le code qui vous a été fourni.
-                </p>
-                <a 
-                  href="/"
-                  className="inline-block px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition"
-                >
-                  Retour à l'accueil
-                </a>
-              </div>
-            </div>
-          } 
-        />
-        
-        {/* Redirection de la page avec code QR vers la page d'accueil */}
-        <Route
-          path="/invitation"
-          element={<Navigate to={`/?code=${guestCode || ''}`} replace />}
-        />
-        
-        {/* Redirection par défaut */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+            } 
+          />
+          
+          {/* Redirection de la page avec code QR vers la page d'accueil */}
+          <Route
+            path="/invitation"
+            element={<Navigate to={`/?code=${guestCode || ''}`} replace />}
+          />
+          
+          {/* Redirection par défaut */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </Router>
+    
   );
 }
 

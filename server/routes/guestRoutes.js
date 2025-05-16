@@ -530,4 +530,97 @@ router.get('/list', verifyAdminAccess, async (req, res) => {
   }
 });
 
+// Ajouter/créer un nouvel invité (admin)
+router.post('/', verifyAdminAccess, apiLimiter, async (req, res) => {
+  try {
+    const { name, email, personalWelcomeMessage } = req.body;
+    
+    // Validation des données
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nom et email requis'
+      });
+    }
+    
+    if (!validators.isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format d\'email invalide'
+      });
+    }
+    
+    // Vérifier si l'email existe déjà
+    const existingGuest = await GuestModel.findOne({ email });
+    if (existingGuest) {
+      return res.status(409).json({
+        success: false,
+        message: 'Un invité avec cet email existe déjà'
+      });
+    }
+    
+    // Créer le nouvel invité
+    const guest = new GuestModel({
+      name: validators.sanitizeInput(name),
+      email: validators.sanitizeInput(email),
+      personalWelcomeMessage: personalWelcomeMessage ? 
+        validators.sanitizeInput(personalWelcomeMessage, 500) : 
+        `Bienvenue ${validators.sanitizeInput(name)} ! Nous sommes ravis de vous compter parmi nous.`
+    });
+    
+    await guest.save();
+    
+    // Journalisation
+    console.log(`Invité créé: ${guest.name} (${guest.email})`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Invité créé avec succès',
+      _id: guest._id,
+      name: guest.name,
+      email: guest.email,
+      personalWelcomeMessage: guest.personalWelcomeMessage
+    });
+  } catch (error) {
+    console.error('Erreur lors de la création d\'un invité:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Supprimer un invité (admin)
+router.delete('/:id', verifyAdminAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Valider l'ID
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID d\'invité invalide'
+      });
+    }
+    
+    // Trouver et supprimer l'invité
+    const guest = await GuestModel.findByIdAndDelete(id);
+    
+    if (!guest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invité non trouvé'
+      });
+    }
+    
+    // Journalisation
+    console.log(`Invité supprimé: ${guest.name} (${guest.email})`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Invité supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression d\'un invité:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
