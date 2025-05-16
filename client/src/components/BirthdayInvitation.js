@@ -1,6 +1,7 @@
 // client/src/components/BirthdayInvitation.js - Partie 1
 import React, { useState, useEffect } from 'react';
-import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info, Shield } from 'lucide-react';
+import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info, Shield, Download, RefreshCw } from 'lucide-react';
+
 
 const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   const [name, setName] = useState('');
@@ -17,6 +18,11 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [rsvpErrors, setRsvpErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [installationMessage, setInstallationMessage] = useState('');
+  const [installButtonText, setInstallButtonText] = useState('Installer l\'application');
+  const [isInstalling, setIsInstalling] = useState(false);
   
   // Informations de l'événement - à personnaliser
   const eventInfo = {
@@ -76,6 +82,89 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       fetchLocationDetails(storedEmail);
     }
   }, []);
+
+  // Écoutez l'événement beforeinstallprompt pour savoir si l'application est installable
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      // Empêcher Chrome 67+ d'afficher automatiquement la boîte de dialogue d'installation
+      e.preventDefault();
+      // Stocker l'événement pour pouvoir le déclencher plus tard
+      setDeferredPrompt(e);
+      // Mettre à jour l'état pour indiquer que l'application est installable
+      setIsInstallable(true);
+      console.log('L\'application peut être installée', e);
+    };
+
+    // Écouter l'événement d'installation réussie
+    const handleAppInstalled = () => {
+      // Effacer le prompt différé car il ne peut plus être utilisé
+      setDeferredPrompt(null);
+      // Mettre à jour l'état pour indiquer que l'application n'est plus installable
+      setIsInstallable(false);
+      // Afficher un message de succès
+      setInstallationMessage('Application installée avec succès !');
+      setTimeout(() => setInstallationMessage(''), 3000);
+      console.log('Application installée avec succès');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Vérifier si l'application est déjà installée (heuristique)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         window.navigator.standalone || 
+                         document.referrer.includes('android-app://');
+    
+    if (isStandalone) {
+      setIsInstallable(false);
+      console.log('Application déjà installée en mode standalone');
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Fonction pour installer l'application
+  const installApp = async () => {
+    if (!deferredPrompt) {
+      // Si l'application est déjà installée ou l'installation n'est pas possible
+      setInstallationMessage('Cette application est déjà installée ou votre navigateur ne prend pas en charge l\'installation d\'applications.');
+      setTimeout(() => setInstallationMessage(''), 5000);
+      return;
+    }
+
+    try {
+      setIsInstalling(true);
+      setInstallButtonText('Installation en cours...');
+      
+      // Afficher la boîte de dialogue d'installation
+      deferredPrompt.prompt();
+      
+      // Attendre que l'utilisateur réponde à l'invite
+      const choiceResult = await deferredPrompt.userChoice;
+      
+      // Une fois que l'utilisateur a fait son choix, effacer le prompt différé
+      setDeferredPrompt(null);
+      
+      if (choiceResult.outcome === 'accepted') {
+        console.log('Utilisateur a accepté l\'installation');
+        setInstallationMessage('Installation réussie !');
+      } else {
+        console.log('Utilisateur a refusé l\'installation');
+        setInstallationMessage('Installation annulée');
+        setIsInstallable(true); // Permettre à l'utilisateur de réessayer
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'installation:', error);
+      setInstallationMessage('Une erreur est survenue pendant l\'installation.');
+    } finally {
+      setIsInstalling(false);
+      setInstallButtonText('Installer l\'application');
+      setTimeout(() => setInstallationMessage(''), 3000);
+    }
+  };
   
   // Fonction pour récupérer les détails de localisation depuis l'API
   const fetchLocationDetails = async (userEmail) => {
@@ -696,10 +785,44 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                 Installez notre application pour partager vos photos en temps réel pendant l'événement !
               </p>
               
-              <button className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition transform hover:scale-105 mb-6">
-                Installer l'application
+              {installationMessage && (
+                <div className={`p-3 mb-4 rounded ${
+                  installationMessage.includes('succès') || installationMessage.includes('réussie') 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                  }`}>
+                  {installationMessage}
+                </div>
+              )}
+        
+              <button 
+                onClick={installApp}
+                disabled={!isInstallable || isInstalling}
+                className={`px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition mb-6 flex items-center justify-center mx-auto ${
+                  !isInstallable || isInstalling ? 'opacity-50 cursor-not-allowed' : 'transform hover:scale-105'
+                }`}
+              >
+                {isInstalling ? (
+                  <>
+                    <RefreshCw size={18} className="mr-2 animate-spin" />
+                    {installButtonText}
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} className="mr-2" />
+                    {installButtonText}
+                  </>
+                )}
               </button>
-              
+        
+              {!isInstallable && (
+                <p className="text-sm text-amber-700 italic">
+                  {window.matchMedia('(display-mode: standalone)').matches ? 
+                    "L'application est déjà installée sur votre appareil." : 
+                    "Votre navigateur ne prend pas en charge l'installation d'applications, ou l'application est déjà installée."}
+                </p>
+              )}
+
               <p className="text-sm text-amber-700">
                 Disponible le jour de l'événement. Les photos apparaîtront ici en temps réel.
               </p>
