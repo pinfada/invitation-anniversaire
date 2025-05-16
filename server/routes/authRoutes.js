@@ -20,6 +20,14 @@ router.post('/admin', loginLimiter, async (req, res) => {
     // Vérifier le mot de passe (stocké en variable d'environnement)
     // Dans une implémentation en production, le mot de passe devrait être hashé dans la DB
     const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+
+    if (!adminPasswordHash) {
+      console.error('ADMIN_PASSWORD_HASH n\'est pas défini dans les variables d\'environnement');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur de configuration du serveur'
+      });
+    }
     
     // Comparaison du mot de passe
     const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
@@ -34,6 +42,7 @@ router.post('/admin', loginLimiter, async (req, res) => {
     }
     
     // Générer une clé API temporaire
+    const crypto = require('crypto');
     const apiKey = crypto.randomBytes(32).toString('hex');
     
     // Dans un système en production, on stockerait cette clé en base de données
@@ -55,6 +64,29 @@ router.post('/admin', loginLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur d\'authentification:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Route de vérification de token
+router.post('/verify', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    
+    if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+      return res.status(403).json({
+        success: false,
+        message: 'Token invalide ou expiré'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Token valide',
+      user: { role: 'admin' }
+    });
+  } catch (error) {
+    console.error('Erreur de vérification:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });

@@ -30,24 +30,47 @@ const GuestManager = () => {
   }, [isAdmin, navigate]);
   
   // Fonction pour récupérer la liste des invités et les statistiques
+
   const fetchGuestsAndStats = async () => {
     try {
       setIsLoading(true);
       setMessage(null);
       
+      // Vérifier que la clé API est disponible
+      const apiKey = localStorage.getItem('adminKey');
+      if (!apiKey) {
+        throw new Error('Non authentifié');
+      }
+      
       // Récupérer la liste des invités
-      const guestsResponse = await authenticatedFetch('/api/guests/list');
+      const guestsResponse = await fetch('/api/guests/list', {
+        headers: {
+          'x-api-key': apiKey
+        }
+      });
       
       if (!guestsResponse.ok) {
-        const errorData = await guestsResponse.json();
-        throw new Error(errorData.message || 'Erreur lors de la récupération des invités');
+        if (guestsResponse.status === 403) {
+          // Problème d'authentification
+          localStorage.removeItem('adminKey');
+          window.location.href = '/admin/login';
+          throw new Error('Session expirée');
+        }
+        
+        const errorText = await guestsResponse.text();
+        console.error('Erreur de réponse:', errorText);
+        throw new Error(`Erreur lors de la récupération des invités (${guestsResponse.status})`);
       }
       
       const guestsData = await guestsResponse.json();
       setGuests(guestsData.success ? guestsData.guests : []);
       
       // Récupérer les statistiques
-      const statsResponse = await authenticatedFetch('/api/guests/stats');
+      const statsResponse = await fetch('/api/guests/stats', {
+        headers: {
+          'x-api-key': apiKey
+        }
+      });
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
@@ -63,7 +86,7 @@ const GuestManager = () => {
       setIsLoading(false);
     }
   };
-  
+    
   // Validation des entrées
   const validateInput = () => {
     const newErrors = {};

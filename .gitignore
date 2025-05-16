@@ -25,3 +25,6 @@ firebase-config.json
 
 # Gitpod
 .gitpod.yml
+
+# Ignorer les scripts de génération de mot de passe
+generate-password-hash.js

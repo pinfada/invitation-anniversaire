@@ -1,20 +1,31 @@
-// server.js - Point d'entrée du serveur Express
+// server.js - Point d'entrée du serveur Express avec authentification admin
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { initializeApp } = require('firebase/app');
 const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
+require('dotenv').config();
 
-// Configuration de l'application Express
+// Initialisation de l'application Express
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Middleware de base
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization']
+}));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Logs pour le débogage
+console.log('Démarrage du serveur...');
+console.log('Variables d\'environnement chargées:', process.env.ADMIN_PASSWORD_HASH ? 'Oui (ADMIN_PASSWORD_HASH)' : 'Non (ADMIN_PASSWORD_HASH manquant)');
 
 // Configuration de la connexion MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/birthday-invitation', {
@@ -76,6 +87,255 @@ const photoSchema = new mongoose.Schema({
 const RSVP = mongoose.model('RSVP', rsvpSchema);
 const Photo = mongoose.model('Photo', photoSchema);
 
+// Middleware d'authentification admin pour les routes protégées
+const verifyAdminAccess = (req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+  
+  if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+    return res.status(403).json({ success: false, message: 'Accès non autorisé' });
+  }
+  
+  next();
+};
+
+// ============ ROUTES D'AUTHENTIFICATION ============
+// Route de connexion admin
+app.post('/api/auth/admin', async (req, res) => {
+  try {
+    console.log('Route /api/auth/admin appelée');
+    console.log('Corps de la requête:', req.body);
+    
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mot de passe est requis'
+      });
+    }
+    
+    // Vérifier le mot de passe (stocké en variable d'environnement)
+    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+    
+    if (!adminPasswordHash) {
+      console.error('ADMIN_PASSWORD_HASH non défini dans les variables d\'environnement');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur de configuration du serveur' 
+      });
+    }
+    
+    // IMPORTANT: Sortez cette partie du bloc try imbriqué
+    console.log('ADMIN_PASSWORD_HASH:', adminPasswordHash ? '**Défini**' : 'Non défini');
+    const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
+    console.log('Résultat de la comparaison:', isValidPassword);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Mot de passe incorrect' 
+      });
+    }
+    
+    // Générer une clé API temporaire
+    const apiKey = crypto.randomBytes(32).toString('hex');
+    
+    // Pour cette implémentation, on utilise process.env pour stocker temporairement la clé
+    process.env.ADMIN_API_KEY = apiKey;
+    
+    // Journaliser la connexion
+    console.log(`Connexion admin réussie: ${new Date().toISOString()}`);
+    
+    // Retourner la clé API avec durée de validité
+    res.json({
+      success: true,
+      message: 'Authentification réussie',
+      apiKey,
+      expiresIn: 3600 // 1 heure
+    });
+  } catch (error) {
+    console.error('Erreur d\'authentification:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur serveur' 
+    });
+  }
+});
+
+// Route de vérification de token
+app.post('/api/auth/verify', async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+    
+    if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+      return res.status(403).json({
+        success: false,
+        message: 'Token invalide ou expiré'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Token valide',
+      user: { role: 'admin' }
+    });
+  } catch (error) {
+    console.error('Erreur de vérification:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============ ROUTES ADMINISTRATION ============
+// Route pour récupérer tous les invités (protégée)
+app.get('/api/guests', verifyAdminAccess, async (req, res) => {
+  try {
+    const guests = await RSVP.find().sort({ createdAt: -1 });
+    res.status(200).json({ success: true, guests });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des invités:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Route pour ajouter un invité (protégée)
+app.post('/api/guests', verifyAdminAccess, async (req, res) => {
+  try {
+    const { name, email, personalWelcomeMessage } = req.body;
+    
+    // Valider les données
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nom et email requis'
+      });
+    }
+    
+    // Vérifier si l'email existe déjà
+    const existingRSVP = await RSVP.findOne({ email });
+    if (existingRSVP) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un invité avec cet email existe déjà'
+      });
+    }
+    
+    // Créer le nouvel invité
+    const newRSVP = new RSVP({
+      name,
+      email,
+      attending: 'pending', // Status initial
+      message: personalWelcomeMessage
+    });
+    
+    await newRSVP.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Invité ajouté avec succès',
+      _id: newRSVP._id,
+      name: newRSVP.name,
+      email: newRSVP.email
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout d\'un invité:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Route pour supprimer un invité (protégée)
+app.delete('/api/guests/:id', verifyAdminAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const deletedRSVP = await RSVP.findByIdAndDelete(id);
+    
+    if (!deletedRSVP) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invité non trouvé'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Invité supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression d\'un invité:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Route pour les statistiques des invités (protégée)
+app.get('/api/guests/stats', verifyAdminAccess, async (req, res) => {
+  try {
+    // Nombre total d'invités
+    const totalGuests = await RSVP.countDocuments();
+    
+    // Nombre d'invités ayant répondu
+    const respondedGuests = await RSVP.countDocuments({ attending: { $ne: null } });
+    
+    // Nombre d'invités confirmés présents
+    const attendingGuests = await RSVP.countDocuments({ attending: 'yes' });
+    
+    // Nombre d'invités ayant décliné
+    const declinedGuests = await RSVP.countDocuments({ attending: 'no' });
+    
+    // Nombre total de personnes (invités + accompagnants)
+    const guestsWithExtras = await RSVP.find({ attending: 'yes' });
+    const totalAttendees = guestsWithExtras.reduce((sum, guest) => sum + (guest.guests || 0) + 1, 0);
+    
+    // Nombre de personnes ayant besoin d'hébergement
+    const accommodationNeeded = await RSVP.countDocuments({ 
+      attending: 'yes', 
+      needsAccommodation: true 
+    });
+    
+    // Réponse avec statistiques
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalGuests,
+        respondedGuests,
+        attendingGuests,
+        declinedGuests,
+        totalAttendees,
+        accommodationNeeded,
+        responseRate: totalGuests > 0 ? Math.round((respondedGuests / totalGuests) * 100) : 0,
+        confirmationRate: respondedGuests > 0 ? Math.round((attendingGuests / respondedGuests) * 100) : 0
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des statistiques:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Route pour récupérer la liste des invités (protégée)
+app.get('/api/guests/list', verifyAdminAccess, async (req, res) => {
+  try {
+    const guests = await RSVP.find().sort({ createdAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      guests: guests.map(guest => ({
+        _id: guest._id,
+        name: guest.name,
+        email: guest.email,
+        attending: guest.attending,
+        guests: guest.guests,
+        needsAccommodation: guest.needsAccommodation,
+        message: guest.message,
+        createdAt: guest.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des invités:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============ ROUTES INVITÉS ============
 // Routes pour le RSVP
 app.post('/api/rsvp', async (req, res) => {
   try {
@@ -228,11 +488,11 @@ app.get('/api/photos', async (req, res) => {
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
   // Servir les fichiers statiques
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  app.use(express.static(path.join(__dirname, 'client/build')));
   
   // Route pour la page d'accueil
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
   
   // Middleware pour toutes les autres routes non-API
@@ -243,11 +503,12 @@ if (process.env.NODE_ENV === 'production') {
     }
     
     // Renvoyer le fichier index.html pour toutes les autres routes
-    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
 }
 
 // Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
+  console.log(`Routes d'authentification disponibles sur http://localhost:${PORT}/api/auth/admin`);
 });
