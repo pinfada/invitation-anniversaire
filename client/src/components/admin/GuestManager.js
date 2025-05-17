@@ -9,7 +9,7 @@ const GuestManager = () => {
   const [newGuest, setNewGuest] = useState({ 
     name: '', 
     email: '', 
-    personalWelcomeMessage: '' 
+    message: '' 
   });
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState(null);
@@ -118,7 +118,7 @@ const GuestManager = () => {
       });
     }
   };
-  
+
   const addGuest = async () => {
     if (!validateInput()) {
       return;
@@ -128,18 +128,23 @@ const GuestManager = () => {
       setIsLoading(true);
       setMessage(null);
       
-      // Préparer l'invité à ajouter
+      // Préparer l'invité à ajouter avec message explicite
+      const welcomeMessage = newGuest.message || 
+        `Bienvenue ${newGuest.name} ! Nous sommes ravis de vous compter parmi nous.`;
+      
       const guestToAdd = { 
-        ...newGuest, 
-        personalWelcomeMessage: newGuest.personalWelcomeMessage || 
-          `Bienvenue ${newGuest.name} ! Nous sommes ravis de vous compter parmi nous.`
+        name: newGuest.name,
+        email: newGuest.email,
+        message: welcomeMessage
       };
       
-      // Version temporaire pour l'UI en attendant la réponse du serveur
+      // Version temporaire pour l'UI
       const tempGuest = { 
         ...guestToAdd, 
         id: `temp-${Date.now()}`,
-        isTemp: true
+        isTemp: true,
+        // Utiliser la bonne clé
+        message: welcomeMessage
       };
       
       // Ajouter temporairement à l'UI
@@ -162,22 +167,29 @@ const GuestManager = () => {
         throw new Error(errorData.message || 'Erreur lors de l\'ajout de l\'invité');
       }
       
-      const addedGuest = await response.json();
+      const responseData = await response.json();
       
-      // Remplacer l'entrée temporaire par la réponse serveur
+      // Construction de l'objet invité avec la bonne clé
+      const addedGuest = {
+        ...responseData,
+        id: responseData._id,
+        // S'assurer que le message est conservé
+        message: responseData.message || welcomeMessage
+      };
+      
+      // Remplacer l'entrée temporaire
       setGuests(prev => prev.map(g => g.id === tempGuest.id ? addedGuest : g));
-      setNewGuest({ name: '', email: '', personalWelcomeMessage: '' });
+      
+      // Réinitialiser le formulaire
+      setNewGuest({ name: '', email: '', message: '' }); // Clé 'message'
+      
       setMessage({
         type: 'success',
         text: 'Invité ajouté avec succès'
       });
       
       // Mettre à jour les statistiques
-      const statsResponse = await authenticatedFetch('/api/guests/stats');
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData.success ? statsData.stats : null);
-      }
+      fetchGuestsAndStats();
     } catch (error) {
       console.error('Erreur:', error);
       setMessage({
@@ -259,12 +271,21 @@ const GuestManager = () => {
       // Filtrer les invités temporaires
       const realGuests = guests.filter(g => !g.isTemp);
       
+      // S'assurer que chaque invité a le bon format de champ 'message'
+      const formattedGuests = realGuests.map(guest => ({
+        ...guest,
+        // Assurons-nous que le champ message est bien défini
+        message: guest.message || `Bienvenue ${guest.name} ! Nous sommes ravis de vous compter parmi nous.`
+        // Si personalWelcomeMessage existe encore quelque part, on le supprime
+        // personalWelcomeMessage: undefined
+      }));
+      
       const response = await authenticatedFetch('/api/guests/generate-guest-list', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ guests: realGuests })
+        body: JSON.stringify({ guests: formattedGuests })
       });
       
       if (!response.ok) {
@@ -286,7 +307,12 @@ const GuestManager = () => {
           const index = updatedGuests.findIndex(g => 
             g._id === updatedGuest._id || g.email === updatedGuest.email);
           if (index !== -1) {
-            updatedGuests[index] = { ...updatedGuests[index], ...updatedGuest };
+            updatedGuests[index] = { 
+              ...updatedGuests[index], 
+              ...updatedGuest,
+              // S'assurer que message est bien préservé
+              message: updatedGuest.message || updatedGuests[index].message
+            };
           }
         });
         
@@ -472,8 +498,8 @@ const GuestManager = () => {
             <label className="block text-sm text-amber-700 mb-1">Message personnalisé</label>
             <input 
               type="text" 
-              name="personalWelcomeMessage" 
-              value={newGuest.personalWelcomeMessage} 
+              name="message" 
+              value={newGuest.message} 
               onChange={handleInputChange} 
               className="w-full p-2 border border-amber-300 rounded"
               placeholder="Message d'accueil personnalisé"
@@ -534,7 +560,7 @@ const GuestManager = () => {
                       {guest.isTemp && <span className="ml-2 italic text-amber-500 text-xs">(en cours d'ajout...)</span>}
                     </td>
                     <td className="border border-amber-300 p-2">{guest.email}</td>
-                    <td className="border border-amber-300 p-2 text-sm">{guest.personalWelcomeMessage}</td>
+                    <td className="border border-amber-300 p-2 text-sm">{guest.message}</td>
                     <td className="border border-amber-300 p-2 text-center">
                       {guest.attending === true && (
                         <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">

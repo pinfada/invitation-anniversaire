@@ -22,6 +22,7 @@
     "author": "Pinfada",
     "license": "MIT",
     "dependencies": {
+        "archiver": "^7.0.1",
         "bcryptjs": "^3.0.2",
         "body-parser": "^2.2.0",
         "browser-image-compression": "^2.0.2",

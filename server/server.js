@@ -13,6 +13,11 @@ require('dotenv').config();
 // Initialisation de l'application Express
 const app = express();
 const PORT = process.env.PORT || 5000;
+const QRCode = require('qrcode');
+const fs = require('fs').promises;
+const archiver = require('archiver');
+const { createReadStream } = require('fs');
+
 
 // Middleware de base
 app.use(cors({
@@ -74,6 +79,10 @@ const rsvpSchema = new mongoose.Schema({
   guests: { type: Number, default: 0 },
   message: { type: String },
   needsAccommodation: { type: Boolean, default: false },
+  qrCodeUrl: { type: String },
+  uniqueCode: { type: String },
+  hasCheckedIn: { type: Boolean, default: false },
+  checkInTime: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -335,6 +344,111 @@ app.get('/api/guests/list', verifyAdminAccess, async (req, res) => {
   }
 });
 
+// ============ ROUTES GÉNÉRATION QR CODES ============
+app.post('/api/guests/generate-guest-list', verifyAdminAccess, async (req, res) => {
+  try {
+    console.log('Route /api/guests/generate-guest-list appelée');
+    const { guests } = req.body;
+    
+    // Validation de la liste d'invités
+    if (!guests || !Array.isArray(guests)) {
+      return res.status(400).json({ success: false, message: 'Liste d\'invités invalide' });
+    }
+    
+    console.log(`Traitement de ${guests.length} invités...`);
+    
+    // Création des dossiers pour les QR codes si nécessaire
+    const publicQrDir = path.join(__dirname, 'public/qr-codes');
+    
+    try {
+      await fs.mkdir(publicQrDir, { recursive: true });
+      console.log('Dossier QR codes créé ou existant:', publicQrDir);
+    } catch (err) {
+      console.error('Erreur lors de la création du dossier QR codes:', err);
+    }
+    
+    // Traitement des invités et génération des QR codes
+    const processedGuests = [];
+    const errors = [];
+    
+    for (const guest of guests) {
+      try {
+        // Chercher l'invité dans la base de données
+        let dbGuest = await RSVP.findOne({ email: guest.email });
+        
+        if (!dbGuest) {
+          // Si l'invité n'existe pas, le créer
+          dbGuest = new RSVP({
+            name: guest.name,
+            email: guest.email,
+            attending: 'pending',
+            message: guest.message || `Bienvenue ${guest.name} ! Nous sommes ravis de vous compter parmi nous.`
+          });
+          await dbGuest.save();
+          console.log(`Nouvel invité créé: ${guest.name} (${guest.email})`);
+        }
+        
+        // Générer un identifiant unique pour le QR code
+        const uniqueId = crypto.createHash('md5').update(guest.email + Date.now()).digest('hex').substring(0, 12);
+        
+        // URL à encoder dans le QR code
+        const invitationUrl = `${process.env.BASE_URL || req.protocol + '://' + req.get('host')}/invitation?email=${encodeURIComponent(guest.email)}`;
+        
+        // Chemin du fichier QR code
+        const qrFilename = `${uniqueId}.png`;
+        const qrPath = path.join(publicQrDir, qrFilename);
+        
+        // Générer le QR code
+        await QRCode.toFile(qrPath, invitationUrl, {
+          color: {
+            dark: '#E4A11B',  // Ambre
+            light: '#FFFFFF'  // Blanc
+          },
+          width: 500,
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        });
+        
+        // URL publique du QR code
+        const qrCodeUrl = `/qr-codes/${qrFilename}`;
+        
+        // Mettre à jour l'invité avec l'URL du QR code
+        dbGuest.qrCodeUrl = qrCodeUrl;
+        await dbGuest.save();
+        
+        // Ajouter à la liste des invités traités
+        processedGuests.push({
+          _id: dbGuest._id,
+          name: dbGuest.name,
+          email: dbGuest.email,
+          attending: dbGuest.attending,
+          message: dbGuest.message,
+          qrCodeUrl: dbGuest.qrCodeUrl
+        });
+        
+        console.log(`QR code généré pour: ${guest.name} (${guest.email})`);
+      } catch (error) {
+        console.error(`Erreur pour l'invité ${guest.email}:`, error);
+        errors.push({
+          email: guest.email,
+          name: guest.name,
+          error: error.message
+        });
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `${processedGuests.length} QR codes générés avec succès`,
+      guests: processedGuests,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Erreur générale lors de la génération des QR codes:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+  }
+});
+
 // ============ ROUTES INVITÉS ============
 // Routes pour le RSVP
 app.post('/api/rsvp', async (req, res) => {
@@ -482,6 +596,93 @@ app.get('/api/photos', async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la récupération des photos:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Route pour télécharger tous les QR codes
+app.get('/api/guests/download-qr-codes', verifyAdminAccess, async (req, res) => {
+  try {
+    console.log('Route /api/guests/download-qr-codes appelée');
+    
+    // Récupérer tous les invités avec des QR codes
+    const guests = await RSVP.find({ qrCodeUrl: { $exists: true, $ne: null } });
+    
+    if (guests.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Aucun QR code trouvé. Veuillez d\'abord générer les QR codes.'
+      });
+    }
+    
+    console.log(`Préparation de ${guests.length} QR codes pour téléchargement...`);
+    
+    // Définir les en-têtes pour le téléchargement
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename=qr-codes-invites.zip');
+    
+    // Créer un stream d'archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Niveau de compression maximal
+    });
+    
+    // Gérer les erreurs d'archivage
+    archive.on('error', (err) => {
+      console.error('Erreur d\'archivage:', err);
+      res.status(500).end();
+    });
+    
+    // Connecter l'archive au response
+    archive.pipe(res);
+    
+    // Ajouter chaque QR code à l'archive
+    const baseDir = path.join(__dirname, 'public');
+    
+    for (const guest of guests) {
+      if (!guest.qrCodeUrl) continue;
+      
+      try {
+        // Chemin absolu du QR code
+        const qrPath = path.join(baseDir, guest.qrCodeUrl.replace(/^\//, ''));
+        
+        // Vérifier si le fichier existe
+        try {
+          await fs.access(qrPath);
+        } catch (err) {
+          console.warn(`QR code introuvable pour ${guest.name} (${guest.email}): ${qrPath}`);
+          continue;
+        }
+        
+        // Nom de fichier normalisé pour l'archive
+        const sanitizedName = guest.name
+          .replace(/[^\w\s-]/g, '') // Supprimer les caractères spéciaux
+          .replace(/\s+/g, '_');    // Remplacer les espaces par des underscores
+        
+        const filename = `${sanitizedName}_${guest.email.split('@')[0]}.png`;
+        
+        // Ajouter le fichier à l'archive
+        archive.file(qrPath, { name: filename });
+        console.log(`QR code ajouté à l'archive: ${filename}`);
+      } catch (fileError) {
+        console.error(`Erreur lors de l'ajout du QR code pour ${guest.name}:`, fileError);
+        // Continuer avec les autres QR codes
+      }
+    }
+    
+    // Finaliser l'archive
+    await archive.finalize();
+    console.log('Archive ZIP finalisée et envoyée');
+  } catch (error) {
+    console.error('Erreur lors du téléchargement des QR codes:', error);
+    // Si la réponse n'a pas encore commencé, envoyer une erreur JSON
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erreur lors de la création de l\'archive: ' + error.message 
+      });
+    } else {
+      // Sinon, terminer simplement la réponse
+      res.end();
+    }
   }
 });
 

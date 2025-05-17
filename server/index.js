@@ -38,7 +38,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes API
 const guestRoutes = require('./routes/guestRoutes');
-const authRoutes = require('./routes/authRoutes'); // Nouvelle route d'authentification
+const authRoutes = require('./routes/authRoutes'); 
 
 app.use('/api/guests', guestRoutes);
 app.use('/api/auth', authRoutes); // Ajouter les routes d'authentification

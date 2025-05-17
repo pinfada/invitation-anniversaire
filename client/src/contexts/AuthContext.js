@@ -106,12 +106,16 @@ export const AuthProvider = ({ children }) => {
       ...options.headers,
       'x-api-key': adminKey
     };
+    console.log('AuthContext -> headers : ', headers)
+    console.log('AuthContext -> url : ', url)
     
     try {
       const response = await fetch(url, {
         ...options,
         headers
       });
+
+      console.log('AuthContext -> response ',response)
       
       // Gestion des erreurs d'authentification
       if (response.status === 403) {
