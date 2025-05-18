@@ -686,26 +686,85 @@ app.get('/api/guests/download-qr-codes', verifyAdminAccess, async (req, res) => 
   }
 });
 
+// Fonction pour trouver le chemin client/build
+const findClientBuildPath = () => {
+  // Options possibles de chemin en fonction de la structure de déploiement
+  const possiblePaths = [
+    path.join(__dirname, 'client/build'),               // Chemin standard
+    path.join(__dirname, '../client/build'),            // Un niveau au-dessus
+    path.resolve('/opt/render/project/src/client/build'),// Chemin Render spécifique
+    path.resolve('./client/build')                      // Chemin relatif au process
+  ];
+  
+  // Vérifier chaque chemin et retourner le premier valide
+  for (const testPath of possiblePaths) {
+    try {
+      if (fs.existsSync(testPath)) {
+        console.log(`Chemin client/build valide trouvé: ${testPath}`);
+        return testPath;
+      }
+    } catch (err) {
+      console.log(`Erreur lors de la vérification du chemin ${testPath}:`, err.message);
+    }
+  }
+  
+  console.error('ATTENTION: Aucun chemin client/build valide trouvé!');
+  return null;
+};
+
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
-  // Servir les fichiers statiques
-  app.use(express.static(path.join(__dirname, 'client/build')));
+  // Déterminer le bon chemin pour les fichiers statiques
+  const clientBuildPath = findClientBuildPath();
   
-  // Route pour la page d'accueil
-  app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
-  
-  // Middleware pour toutes les autres routes non-API
-  app.use((req, res, next) => {
-    // Ne pas intercepter les routes API
-    if (req.path.startsWith('/api/')) {
-      return next();
-    }
+  if (clientBuildPath) {
+    // Servir les fichiers statiques
+    console.log(`Servant les fichiers statiques depuis: ${clientBuildPath}`);
+    app.use(express.static(clientBuildPath));
     
-    // Renvoyer le fichier index.html pour toutes les autres routes
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
+    // Route pour la page d'accueil et toutes les routes non-API
+    app.get('*', (req, res, next) => {
+      // Ne pas intercepter les routes API
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      
+      // Chemin vers index.html
+      const indexPath = path.join(clientBuildPath, 'index.html');
+      
+      // Vérifier si le fichier existe avant de le servir
+      try {
+        if (fs.existsSync(indexPath)) {
+          return res.sendFile(indexPath);
+        } else {
+          console.error(`ERREUR: index.html non trouvé à: ${indexPath}`);
+          return res.status(404).send('Fichier index.html introuvable.');
+        }
+      } catch (err) {
+        console.error(`Erreur lors de l'accès à index.html:`, err);
+        return res.status(500).send('Erreur serveur lors de l\'accès au fichier index.html');
+      }
+    });
+  } else {
+    // Fallback si aucun chemin valide n'est trouvé
+    console.error('ERREUR CRITIQUE: Impossible de trouver le dossier client/build!');
+    
+    // Middleware pour informer l'utilisateur
+    app.use((req, res, next) => {
+      if (!req.path.startsWith('/api/')) {
+        return res.status(500).send(`
+          <html>
+            <head><title>Erreur de configuration</title></head>
+            <body>
+              <h1>Erreur de déploiement</h1>
+              <p>Le serveur ne trouve pas les fichiers frontend. Veuillez contacter l'administrateur.</p>
+            </body>
+          </html>
+        `);
+      }
+      next();
+    });
+  }
 }
 
 // Démarrer le serveur
