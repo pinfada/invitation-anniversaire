@@ -6,6 +6,8 @@ const CACHE_NAME = 'birthday-invitation-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/offline.html',
+  '/admin-offline.html',
   '/static/js/main.chunk.js',
   '/static/js/bundle.js',
   '/static/css/main.chunk.css',
@@ -73,6 +75,14 @@ self.addEventListener('fetch', event => {
       !url.hostname.endsWith('cloudinary.com') &&
       !url.hostname.endsWith('firebaseio.com') &&
       !url.hostname.endsWith('googleapis.com')) {
+    return;
+  }
+
+  // Ne pas intercepter les routes admin
+  if (url.pathname.includes('/admin') || 
+      url.pathname.includes('/api/auth') || 
+      url.pathname.includes('/api/guests')) {
+    // Laisser le navigateur gérer ces requêtes normalement
     return;
   }
   

@@ -21,25 +21,38 @@ export const AuthProvider = ({ children }) => {
       }
       
       try {
-        const response = await fetch('/api/guests/stats', {
+        // Utiliser la route dédiée à la vérification d'authentification
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
           headers: {
-            'x-api-key': adminKey
-          }
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ apiKey: adminKey })
         });
         
-        if (response.status === 403) {
-          // Clé API invalide, supprimer de localStorage
+        const data = await response.json();
+        
+        if (!response.ok) {
+          // Gestion des différents codes d'erreur
+          if (response.status === 403) {
+            localStorage.removeItem('adminKey');
+            setAdminKey(null);
+            setIsAdmin(false);
+            setAuthError('Clé d\'administration invalide ou expirée');
+          } else {
+            setAuthError(`Erreur lors de la vérification: ${data.message || 'Erreur inconnue'}`);
+            setIsAdmin(false);
+          }
+        } else if (data.success) {
+          // Clé API valide
+          setIsAdmin(true);
+          setAuthError(null);
+        } else {
+          // Réponse success: false
           localStorage.removeItem('adminKey');
           setAdminKey(null);
           setIsAdmin(false);
-          setAuthError('Clé d\'administration invalide ou expirée');
-        } else if (response.ok) {
-          // Clé API valide
-          setIsAdmin(true);
-        } else {
-          // Autre erreur
-          setAuthError('Erreur lors de la vérification des droits d\'administration');
-          setIsAdmin(false);
+          setAuthError(data.message || 'Erreur de vérification des droits d\'administration');
         }
       } catch (error) {
         console.error('Erreur de connexion au serveur:', error);
@@ -59,7 +72,6 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setAuthError(null);
       
-      // Cette route doit être implémentée côté serveur
       const response = await fetch('/api/auth/admin', {
         method: 'POST',
         headers: {
@@ -106,26 +118,31 @@ export const AuthProvider = ({ children }) => {
       ...options.headers,
       'x-api-key': adminKey
     };
-    console.log('AuthContext -> headers : ', headers)
-    console.log('AuthContext -> url : ', url)
     
     try {
       const response = await fetch(url, {
         ...options,
         headers
       });
-
-      console.log('AuthContext -> response ',response)
       
       // Gestion des erreurs d'authentification
       if (response.status === 403) {
         logout();
         throw new Error('Session expirée ou invalide');
       }
+
+      // Pour les erreurs 503, informer spécifiquement
+      if (response.status === 503) {
+        throw new Error('Le serveur est temporairement indisponible. Vérifiez votre connexion réseau ou réessayez plus tard.');
+      }
       
       return response;
     } catch (error) {
-      console.error('Erreur API:', error);
+      // Récupérer les erreurs réseau
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        throw new Error('Impossible de se connecter au serveur. Vérifiez votre connexion réseau.');
+      }
+      
       throw error;
     }
   };

@@ -68,12 +68,19 @@ router.post('/admin', loginLimiter, async (req, res) => {
   }
 });
 
-// Route de vérification de token
+// Route de vérification de token (améliorée)
 router.post('/verify', async (req, res) => {
   try {
-    const { apiKey } = req.body;
+    // Accepter l'API key du body OU des headers pour plus de flexibilité
+    const apiKey = req.body.apiKey || req.headers['x-api-key'];
+    const adminKey = process.env.ADMIN_API_KEY
+    console.log('AuthContext -> apiKey : ', apiKey)
+    console.log('AuthContext -> adminKey : ', adminKey)
     
     if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+      // Délai anti-timing attack
+      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 200));
+      
       return res.status(403).json({
         success: false,
         message: 'Token invalide ou expiré'

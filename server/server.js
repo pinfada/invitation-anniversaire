@@ -174,7 +174,7 @@ app.post('/api/auth/admin', async (req, res) => {
 // Route de vérification de token
 app.post('/api/auth/verify', async (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'];
+    const apiKey = req.body.apiKey || req.headers['x-api-key'];
     
     if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
       return res.status(403).json({
