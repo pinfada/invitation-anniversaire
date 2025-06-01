@@ -78,13 +78,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Ne pas intercepter les routes admin
-  if (url.pathname.includes('/admin') || 
-      url.pathname.includes('/api/auth') || 
-      url.pathname.includes('/api/guests')) {
-    // Laisser le navigateur gérer ces requêtes normalement
+  // Ne pas intercepter les requêtes API
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
+
+  // Gestion spécifique pour l'admin
+  if (url.pathname.startsWith('/admin')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/admin-offline.html'))
+    );
+    return;
+  }
+
+  // Pour les autres routes, fallback sur offline.html
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match('/offline.html'))
+  );
   
   // Stratégie pour les ressources statiques: Cache First
   if (isStaticAsset(url.pathname)) {
