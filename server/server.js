@@ -14,10 +14,10 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const QRCode = require('qrcode');
-const fs = require('fs').promises;
+const fs = require('fs');  // ✅ Import synchrone standard
+const fsPromises = require('fs').promises;  // ✅ Import pour les opérations async
 const archiver = require('archiver');
 const { createReadStream } = require('fs');
-
 
 // Middleware de base
 app.use(cors({
@@ -134,7 +134,6 @@ app.post('/api/auth/admin', async (req, res) => {
       });
     }
     
-    // IMPORTANT: Sortez cette partie du bloc try imbriqué
     console.log('ADMIN_PASSWORD_HASH:', adminPasswordHash ? '**Défini**' : 'Non défini');
     const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
     console.log('Résultat de la comparaison:', isValidPassword);
@@ -192,6 +191,16 @@ app.post('/api/auth/verify', async (req, res) => {
     console.error('Erreur de vérification:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
+});
+
+// ============ ENDPOINT HEALTH CHECK ============
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'invitation-anniversaire',
+    version: '1.0.0'
+  });
 });
 
 // ============ ROUTES ADMINISTRATION ============
@@ -361,7 +370,7 @@ app.post('/api/guests/generate-guest-list', verifyAdminAccess, async (req, res) 
     const publicQrDir = path.join(__dirname, 'public/qr-codes');
     
     try {
-      await fs.mkdir(publicQrDir, { recursive: true });
+      await fsPromises.mkdir(publicQrDir, { recursive: true });
       console.log('Dossier QR codes créé ou existant:', publicQrDir);
     } catch (err) {
       console.error('Erreur lors de la création du dossier QR codes:', err);
@@ -485,9 +494,6 @@ app.post('/api/rsvp', async (req, res) => {
     });
     
     await newRSVP.save();
-    
-    // Envoyer un email de confirmation (à implémenter selon besoin)
-    // sendConfirmationEmail(email, name, attending);
     
     res.status(201).json({ 
       success: true, 
@@ -646,7 +652,7 @@ app.get('/api/guests/download-qr-codes', verifyAdminAccess, async (req, res) => 
         
         // Vérifier si le fichier existe
         try {
-          await fs.access(qrPath);
+          await fsPromises.access(qrPath);
         } catch (err) {
           console.warn(`QR code introuvable pour ${guest.name} (${guest.email}): ${qrPath}`);
           continue;
@@ -686,7 +692,7 @@ app.get('/api/guests/download-qr-codes', verifyAdminAccess, async (req, res) => 
   }
 });
 
-// Fonction pour trouver le chemin client/build
+// ✅ Fonction corrigée pour trouver le chemin client/build
 const findClientBuildPath = () => {
   // Options possibles de chemin en fonction de la structure de déploiement
   const possiblePaths = [
@@ -696,33 +702,65 @@ const findClientBuildPath = () => {
     path.resolve('./client/build')                      // Chemin relatif au process
   ];
   
+  console.log('🔍 Recherche du dossier client/build...');
+  console.log('Répertoire de travail actuel:', process.cwd());
+  console.log('__dirname:', __dirname);
+  
   // Vérifier chaque chemin et retourner le premier valide
   for (const testPath of possiblePaths) {
     try {
+      console.log(`   Vérification: ${testPath}`);
       if (fs.existsSync(testPath)) {
-        console.log(`Chemin client/build valide trouvé: ${testPath}`);
-        return testPath;
+        console.log(`✅ Chemin client/build valide trouvé: ${testPath}`);
+        
+        // Vérifier le contenu du dossier
+        try {
+          const contents = fs.readdirSync(testPath);
+          console.log(`   Contenu (${contents.length} éléments):`, contents.slice(0, 5).join(', ') + (contents.length > 5 ? '...' : ''));
+          
+          // Vérifier si index.html existe
+          const indexPath = path.join(testPath, 'index.html');
+          if (fs.existsSync(indexPath)) {
+            console.log(`✅ index.html trouvé: ${indexPath}`);
+            return testPath;
+          } else {
+            console.log(`❌ index.html manquant dans: ${testPath}`);
+          }
+        } catch (readError) {
+          console.log(`❌ Erreur de lecture du dossier ${testPath}:`, readError.message);
+        }
+      } else {
+        console.log(`❌ Chemin inexistant: ${testPath}`);
       }
     } catch (err) {
-      console.log(`Erreur lors de la vérification du chemin ${testPath}:`, err.message);
+      console.log(`❌ Erreur lors de la vérification du chemin ${testPath}:`, err.message);
     }
   }
   
-  console.error('ATTENTION: Aucun chemin client/build valide trouvé!');
+  console.error('🚨 ATTENTION: Aucun chemin client/build valide trouvé!');
   return null;
 };
 
-// Servir les fichiers statiques en production
+// ✅ Servir les fichiers statiques en production avec gestion robuste
 if (process.env.NODE_ENV === 'production') {
+  console.log('🏭 Mode production activé - Configuration des fichiers statiques...');
+  
   // Déterminer le bon chemin pour les fichiers statiques
   const clientBuildPath = findClientBuildPath();
   
   if (clientBuildPath) {
     // Servir les fichiers statiques
-    console.log(`Servant les fichiers statiques depuis: ${clientBuildPath}`);
+    console.log(`📁 Servant les fichiers statiques depuis: ${clientBuildPath}`);
     app.use(express.static(clientBuildPath));
     
-    // Route pour la page d'accueil et toutes les routes non-API
+    // Servir les QR codes depuis public/qr-codes
+    const qrCodesPath = path.join(__dirname, 'public/qr-codes');
+    if (fs.existsSync(qrCodesPath)) {
+      app.use('/qr-codes', express.static(qrCodesPath));
+      console.log(`📄 QR codes servis depuis: ${qrCodesPath}`);
+    }
+    
+    // Route catch-all pour React Router (doit être en dernier)
     app.get('*', (req, res, next) => {
       // Ne pas intercepter les routes API
       if (req.path.startsWith('/api/')) {
@@ -735,40 +773,223 @@ if (process.env.NODE_ENV === 'production') {
       // Vérifier si le fichier existe avant de le servir
       try {
         if (fs.existsSync(indexPath)) {
+          console.log(`📄 Servant index.html pour: ${req.path}`);
           return res.sendFile(indexPath);
         } else {
-          console.error(`ERREUR: index.html non trouvé à: ${indexPath}`);
-          return res.status(404).send('Fichier index.html introuvable.');
+          console.error(`❌ ERREUR: index.html non trouvé à: ${indexPath}`);
+          return res.status(404).send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Erreur 404</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+            </head>
+            <body>
+              <h1>Erreur 404</h1>
+              <p>Fichier index.html introuvable à: ${indexPath}</p>
+            </body>
+            </html>
+          `);
         }
       } catch (err) {
-        console.error(`Erreur lors de l'accès à index.html:`, err);
-        return res.status(500).send('Erreur serveur lors de l\'accès au fichier index.html');
+        console.error(`❌ Erreur lors de l'accès à index.html:`, err);
+        return res.status(500).send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Erreur 500</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+          </head>
+          <body>
+            <h1>Erreur 500</h1>
+            <p>Erreur serveur lors de l'accès au fichier index.html</p>
+            <p>Détail: ${err.message}</p>
+          </body>
+          </html>
+        `);
       }
     });
   } else {
     // Fallback si aucun chemin valide n'est trouvé
-    console.error('ERREUR CRITIQUE: Impossible de trouver le dossier client/build!');
+    console.error('🚨 ERREUR CRITIQUE: Impossible de trouver le dossier client/build!');
     
     // Middleware pour informer l'utilisateur
     app.use((req, res, next) => {
       if (!req.path.startsWith('/api/')) {
-        return res.status(500).send(`
+        return res.status(503).send(`
+          <!DOCTYPE html>
           <html>
-            <head><title>Erreur de configuration</title></head>
-            <body>
-              <h1>Erreur de déploiement</h1>
-              <p>Le serveur ne trouve pas les fichiers frontend. Veuillez contacter l'administrateur.</p>
-            </body>
+          <head>
+            <title>Service temporairement indisponible</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { 
+                font-family: system-ui, -apple-system, sans-serif; 
+                text-align: center; 
+                padding: 50px; 
+                background: linear-gradient(135deg, #fef3c7, #fde68a);
+                color: #92400e;
+                margin: 0;
+              }
+              .container { 
+                max-width: 600px; 
+                margin: 0 auto; 
+                background: white; 
+                padding: 40px; 
+                border-radius: 15px; 
+                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+              }
+              h1 { color: #d97706; margin-bottom: 20px; }
+              .loading { 
+                display: inline-block; 
+                width: 20px; 
+                height: 20px; 
+                border: 3px solid #f3f3f3; 
+                border-top: 3px solid #d97706; 
+                border-radius: 50%; 
+                animation: spin 1s linear infinite; 
+                margin: 20px 0;
+              }
+              @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+              .btn {
+                background: #d97706; 
+                color: white; 
+                border: none; 
+                padding: 12px 24px; 
+                border-radius: 8px; 
+                cursor: pointer; 
+                font-size: 16px;
+                margin: 20px 10px;
+                text-decoration: none;
+                display: inline-block;
+              }
+              .btn:hover { background: #b45309; }
+              .debug {
+                background: #f3f4f6;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                text-align: left;
+                font-family: monospace;
+                font-size: 12px;
+                color: #374151;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>🎉 Application en cours de déploiement</h1>
+              <div class="loading"></div>
+              <p><strong>L'application React est en cours de compilation...</strong></p>
+              <p>Ceci peut prendre quelques minutes lors du premier déploiement.</p>
+              
+              <div class="debug">
+                <strong>Informations de diagnostic :</strong><br>
+                • Répertoire de travail: ${process.cwd()}<br>
+                • __dirname: ${__dirname}<br>
+                • NODE_ENV: ${process.env.NODE_ENV}<br>
+                • Timestamp: ${new Date().toISOString()}
+              </div>
+              
+              <button onclick="window.location.reload()" class="btn">
+                🔄 Rafraîchir la page
+              </button>
+              
+              <a href="/api/health" class="btn" style="background: #059669;">
+                ✅ Vérifier l'API
+              </a>
+              
+              <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
+                Si le problème persiste après 10 minutes, contactez l'administrateur.
+              </p>
+            </div>
+          </body>
           </html>
         `);
       }
       next();
     });
   }
+} else {
+  // ✅ En mode développement
+  console.log('🛠️ Mode développement - API seulement');
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'API Server is running! 🚀',
+      mode: 'development',
+      endpoints: {
+        health: '/api/health',
+        admin: '/api/auth/admin',
+        guests: '/api/guests'
+      },
+      frontend: 'Should be running on port 3000'
+    });
+  });
 }
 
-// Démarrer le serveur
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
-  console.log(`Routes d'authentification disponibles sur http://localhost:${PORT}/api/auth/admin`);
+// ✅ Gestion globale des erreurs
+app.use((err, req, res, next) => {
+  console.error('❌ Erreur serveur non gérée:', err.stack);
+  
+  // Ne pas exposer les détails d'erreur en production
+  const errorDetails = process.env.NODE_ENV === 'development' ? {
+    message: err.message,
+    stack: err.stack
+  } : {
+    message: 'Une erreur interne est survenue'
+  };
+  
+  res.status(500).json({ 
+    success: false, 
+    message: 'Erreur interne du serveur',
+    error: errorDetails
+  });
+});
+
+// ✅ Gestion des routes non trouvées
+app.use('*', (req, res) => {
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      message: `Route API non trouvée: ${req.method} ${req.originalUrl}`,
+      availableRoutes: [
+        'GET /api/health',
+        'POST /api/auth/admin',
+        'GET /api/guests',
+        'POST /api/guests',
+        'POST /api/rsvp'
+      ]
+    });
+  }
+  
+  // Pour les routes non-API en production, cela devrait être géré par le catch-all React
+  res.status(404).send('Route non trouvée');
+});
+
+// ✅ Démarrage du serveur avec logs détaillés
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('🚀════════════════════════════════════════🚀');
+  console.log(`🎉 Serveur démarré avec succès sur le port ${PORT}`);
+  console.log(`🌍 Mode: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📁 Répertoire de travail: ${process.cwd()}`);
+  console.log(`📂 Répertoire serveur: ${__dirname}`);
+  console.log(`⏰ Démarrage: ${new Date().toISOString()}`);
+  console.log('🚀════════════════════════════════════════🚀');
+  
+  // Routes disponibles
+  console.log('📡 Routes API disponibles:');
+  console.log(`   🔐 Admin: http://localhost:${PORT}/api/auth/admin`);
+  console.log(`   ❤️  Health: http://localhost:${PORT}/api/health`);
+  console.log(`   👥 Invités: http://localhost:${PORT}/api/guests`);
+  console.log(`   📝 RSVP: http://localhost:${PORT}/api/rsvp`);
+  
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`   🌐 Frontend: http://localhost:${PORT}/`);
+  } else {
+    console.log(`   🛠️  Frontend dev: http://localhost:3000/`);
+  }
+  console.log('────────────────────────────────────────────');
 });
