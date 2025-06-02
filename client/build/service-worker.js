@@ -21,7 +21,9 @@ const STATIC_ASSETS = [
 const THEME_ASSETS = [
   // Images de thème et icônes
   '/static/images/background.jpg',
-  '/static/images/celebration.svg'
+  '/static/images/celebration.svg',
+  '/static/images/offline-image.png', // Image de fallback
+  '/badge.png' // Badge pour notifications
 ];
 
 // URLs d'API à mettre en cache (stratégie stale-while-revalidate)
@@ -70,16 +72,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
-  // Ne pas intercepter les requêtes vers Google Analytics ou d'autres services externes
-  if (!url.origin.includes(self.location.origin) && 
+  // Ne pas intercepter les requêtes vers des services externes (sauf CDN autorisés)
+  if (url.origin !== self.location.origin && 
       !url.hostname.endsWith('cloudinary.com') &&
       !url.hostname.endsWith('firebaseio.com') &&
       !url.hostname.endsWith('googleapis.com')) {
-    return;
-  }
-
-  // Ne pas intercepter les requêtes API
-  if (url.pathname.startsWith('/api/')) {
     return;
   }
 
@@ -91,11 +88,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Pour les autres routes, fallback sur offline.html
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match('/offline.html'))
-  );
-  
   // Stratégie pour les ressources statiques: Cache First
   if (isStaticAsset(url.pathname)) {
     event.respondWith(cacheFirstStrategy(event.request));
@@ -121,7 +113,15 @@ self.addEventListener('fetch', event => {
   }
   
   // Stratégie par défaut: Network First pour le reste
-  event.respondWith(networkFirstStrategy(event.request));
+  event.respondWith(
+    networkFirstStrategy(event.request).catch(() => {
+      // Fallback global sur offline.html pour les pages de navigation
+      if (event.request.mode === 'navigate') {
+        return caches.match('/offline.html');
+      }
+      throw error;
+    })
+  );
 });
 
 // Helpers pour déterminer le type de ressource
@@ -137,19 +137,19 @@ function isApiRoute(pathname) {
 
 // Stratégie Cache First: Essayer le cache d'abord, puis le réseau si nécessaire
 async function cacheFirstStrategy(request) {
-  const cachedResponse = await caches.match(request);
-  
-  if (cachedResponse) {
-    // Retourner la version en cache immédiatement
-    return cachedResponse;
-  }
-  
-  // Si pas en cache, aller chercher sur le réseau
   try {
+    const cachedResponse = await caches.match(request);
+    
+    if (cachedResponse) {
+      // Retourner la version en cache immédiatement
+      return cachedResponse;
+    }
+    
+    // Si pas en cache, aller chercher sur le réseau
     const networkResponse = await fetch(request);
     
-    // Ne mettre en cache que les réponses valides
-    if (networkResponse && networkResponse.status === 200) {
+    // Ne mettre en cache que les requêtes GET avec succès
+    if (networkResponse && networkResponse.status === 200 && request.method === 'GET') {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
     }
@@ -158,10 +158,13 @@ async function cacheFirstStrategy(request) {
   } catch (error) {
     // Si le réseau échoue et que c'est une image, retourner une image de fallback
     if (request.destination === 'image') {
-      return caches.match('/static/images/offline-image.png');
+      const fallbackImage = await caches.match('/static/images/offline-image.png');
+      if (fallbackImage) {
+        return fallbackImage;
+      }
     }
     
-    // Pour les autres types, retourner une erreur générique
+    // Pour les autres types, propager l'erreur
     throw error;
   }
 }
@@ -172,24 +175,29 @@ async function networkFirstStrategy(request) {
     // Essayer d'abord le réseau
     const networkResponse = await fetch(request);
     
-    // Si succès, mettre en cache pour future utilisation
-    if (networkResponse && networkResponse.status === 200) {
+    // Ne mettre en cache que les requêtes GET avec succès
+    if (networkResponse && networkResponse.status === 200 && request.method === 'GET') {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
     }
     
     return networkResponse;
   } catch (error) {
-    // Si réseau échoue, essayer le cache
-    const cachedResponse = await caches.match(request);
-    
-    if (cachedResponse) {
-      return cachedResponse;
+    // Si réseau échoue, essayer le cache (seulement pour GET)
+    if (request.method === 'GET') {
+      const cachedResponse = await caches.match(request);
+      
+      if (cachedResponse) {
+        return cachedResponse;
+      }
     }
     
     // Si c'est une page HTML, retourner la page offline
     if (request.mode === 'navigate') {
-      return caches.match('/offline.html');
+      const offlinePage = await caches.match('/offline.html');
+      if (offlinePage) {
+        return offlinePage;
+      }
     }
     
     // Si c'est une requête API, retourner une réponse d'erreur formatée
@@ -440,7 +448,7 @@ async function syncPhotos() {
           // Si succès, marquer comme envoyée dans IndexedDB
           await markPhotoAsSynced(db, photo.id);
         } else {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
           console.error(`Erreur lors de la synchronisation de la photo ${photo.id}:`, errorData);
         }
       } catch (err) {
@@ -491,7 +499,7 @@ async function syncRSVP() {
           // Si succès, marquer comme envoyé dans IndexedDB
           await markRSVPAsSynced(db, rsvp.id);
         } else {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
           console.error(`Erreur lors de la synchronisation du RSVP ${rsvp.id}:`, errorData);
         }
       } catch (err) {
@@ -565,39 +573,58 @@ async function updateRSVPAttemptCount(db, id) {
 
 // Gestion des notifications push
 self.addEventListener('push', event => {
-  const data = event.data.json();
-  
-  const options = {
-    body: data.message,
-    icon: '/logo192.png',
-    badge: '/badge.png',
-    data: {
-      url: data.url || '/'
-    }
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification('Anniversaire', options)
-  );
+  if (!event.data) {
+    console.warn('Push event sans données reçu');
+    return;
+  }
+
+  try {
+    const data = event.data.json();
+    
+    const options = {
+      body: data.message || 'Nouvelle notification',
+      icon: '/logo192.png',
+      badge: '/badge.png',
+      tag: data.tag || 'birthday-notification',
+      requireInteraction: data.requireInteraction || false,
+      data: {
+        url: data.url || '/',
+        timestamp: Date.now()
+      }
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Anniversaire', options)
+    );
+  } catch (error) {
+    console.error('Erreur lors du traitement de la notification push:', error);
+  }
 });
 
 // Gestion du clic sur une notification
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   
+  const targetUrl = event.notification.data?.url || '/';
+  
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(clientList => {
-      // Vérifier si une fenêtre est déjà ouverte et y naviguer
+    clients.matchAll({ 
+      type: 'window',
+      includeUncontrolled: true 
+    }).then(clientList => {
+      // Vérifier si une fenêtre est déjà ouverte avec la bonne URL
       for (const client of clientList) {
-        if (client.url === event.notification.data.url && 'focus' in client) {
+        if (client.url === targetUrl && 'focus' in client) {
           return client.focus();
         }
       }
       
-      // Sinon ouvrir une nouvelle fenêtre
+      // Si aucune fenêtre appropriée n'est trouvée, en ouvrir une nouvelle
       if (clients.openWindow) {
-        return clients.openWindow(event.notification.data.url);
+        return clients.openWindow(targetUrl);
       }
+    }).catch(error => {
+      console.error('Erreur lors de la gestion du clic sur notification:', error);
     })
   );
 });

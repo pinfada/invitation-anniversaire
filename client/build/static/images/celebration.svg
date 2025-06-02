@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Fond dégradé festif -->
+  <defs>
+    <radialGradient id="backgroundGradient" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" style="stop-color:#fef3c7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="balloonGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444" />
+      <stop offset="100%" style="stop-color:#dc2626" />
+    </linearGradient>
+    <linearGradient id="balloonGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6" />
+      <stop offset="100%" style="stop-color:#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="balloonGradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981" />
+      <stop offset="100%" style="stop-color:#059669" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fond -->
+  <circle cx="100" cy="100" r="100" fill="url(#backgroundGradient)" />
+  
+  <!-- Confettis en arrière-plan -->
+  <rect x="30" y="20" width="4" height="8" fill="#ec4899" transform="rotate(45 32 24)" />
+  <rect x="160" y="30" width="4" height="8" fill="#8b5cf6" transform="rotate(-30 162 34)" />
+  <rect x="180" y="60" width="4" height="8" fill="#06b6d4" transform="rotate(60 182 64)" />
+  <rect x="20" y="80" width="4" height="8" fill="#84cc16" transform="rotate(-15 22 84)" />
+  <rect x="170" y="120" width="4" height="8" fill="#f97316" transform="rotate(75 172 124)" />
+  <rect x="25" y="160" width="4" height="8" fill="#ef4444" transform="rotate(30 27 164)" />
+  
+  <!-- Ballons -->
+  <!-- Ballon rouge -->
+  <ellipse cx="70" cy="80" rx="18" ry="22" fill="url(#balloonGradient1)" />
+  <ellipse cx="67" cy="75" rx="3" ry="4" fill="#fca5a5" opacity="0.6" />
+  <line x1="70" y1="102" x2="70" y2="140" stroke="#374151" stroke-width="1.5" />
+  
+  <!-- Ballon bleu -->
+  <ellipse cx="100" cy="65" rx="18" ry="22" fill="url(#balloonGradient2)" />
+  <ellipse cx="97" cy="60" rx="3" ry="4" fill="#93c5fd" opacity="0.6" />
+  <line x1="100" y1="87" x2="100" y2="125" stroke="#374151" stroke-width="1.5" />
+  
+  <!-- Ballon vert -->
+  <ellipse cx="130" cy="75" rx="18" ry="22" fill="url(#balloonGradient3)" />
+  <ellipse cx="127" cy="70" rx="3" ry="4" fill="#86efac" opacity="0.6" />
+  <line x1="130" y1="97" x2="130" y2="135" stroke="#374151" stroke-width="1.5" />
+  
+  <!-- Gâteau d'anniversaire -->
+  <!-- Base du gâteau -->
+  <rect x="80" y="120" width="40" height="25" rx="3" fill="#8b4513" />
+  <rect x="80" y="120" width="40" height="8" rx="3" fill="#d2691e" />
+  
+  <!-- Glaçage -->
+  <ellipse cx="100" cy="120" rx="20" ry="4" fill="#ffeaa7" />
+  
+  <!-- Bougies -->
+  <rect x="88" y="110" width="2" height="10" fill="#ffeaa7" />
+  <rect x="98" y="108" width="2" height="12" fill="#ffeaa7" />
+  <rect x="108" y="110" width="2" height="10" fill="#ffeaa7" />
+  
+  <!-- Flammes -->
+  <ellipse cx="89" cy="108" rx="1.5" ry="2" fill="#ff6b35" />
+  <ellipse cx="99" cy="106" rx="1.5" ry="2" fill="#ff6b35" />
+  <ellipse cx="109" cy="108" rx="1.5" ry="2" fill="#ff6b35" />
+  
+  <!-- Étincelles autour des flammes -->
+  <circle cx="85" cy="105" r="1" fill="#ffeb3b" opacity="0.8" />
+  <circle cx="95" cy="103" r="1" fill="#ffeb3b" opacity="0.8" />
+  <circle cx="105" cy="105" r="1" fill="#ffeb3b" opacity="0.8" />
+  <circle cx="113" cy="106" r="1" fill="#ffeb3b" opacity="0.8" />
+  
+  <!-- Confettis supplémentaires -->
+  <circle cx="50" cy="50" r="2" fill="#ec4899" />
+  <circle cx="150" cy="45" r="2" fill="#8b5cf6" />
+  <circle cx="40" cy="130" r="2" fill="#06b6d4" />
+  <circle cx="160" cy="140" r="2" fill="#84cc16" />
+  
+  <!-- Étoiles -->
+  <polygon points="60,40 62,46 68,46 63,50 65,56 60,52 55,56 57,50 52,46 58,46" fill="#fbbf24" />
+  <polygon points="140,35 141,39 145,39 142,42 143,46 140,44 137,46 138,42 135,39 139,39" fill="#fbbf24" />
+</svg>
