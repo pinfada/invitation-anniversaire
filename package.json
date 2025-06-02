@@ -4,8 +4,8 @@
   "description": "Site d'invitation pour un anniversaire avec QR codes personnalisés",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server.js",
-    "server": "nodemon server.js",
+    "start": "node server/server.js",
+    "server": "nodemon server/server.js",
     "client": "cd client && npm start",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "cd client && npm run build",
