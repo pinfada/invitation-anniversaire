@@ -1,7 +1,7 @@
 // client/src/components/BirthdayInvitation.js - Partie 1
 import React, { useState, useEffect } from 'react';
 import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info, Shield, Download, RefreshCw } from 'lucide-react';
-
+import InteractiveMap from './InteractiveMap';
 
 const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
   const [name, setName] = useState('');
@@ -533,32 +533,24 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Détails de localisation - visible seulement après confirmation */}
+                <div className="space-y-8">
+                  {/* Détails de localisation avec carte interactive */}
                   <div>
-                    <div className="flex items-center mb-2">
+                    <div className="flex items-center mb-4">
                       <MapPin className="h-6 w-6 text-amber-600 mr-2" />
-                      <h3 className="text-xl font-semibold">Lieu</h3>
-                    </div>
-                    <div className="ml-8 mb-4">
-                      <p className="font-semibold mb-1">{locationDetails?.location?.name}</p>
-                      <p>{locationDetails?.location?.address}</p>
-                      
-                      <div className="mt-3 p-3 bg-amber-50 rounded border border-amber-200">
-                        <p className="font-medium text-amber-800">Code d'accès: {locationDetails?.location?.accessCode}</p>
-                        <p className="mt-1">{locationDetails?.location?.parkingInfo}</p>
-                      </div>
+                      <h3 className="text-xl font-semibold">Lieu et accès</h3>
                     </div>
                     
-                    <div className="ml-8 mt-4 aspect-video bg-amber-100 rounded-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <MapPin className="h-8 w-8 mx-auto text-amber-500 mb-2" />
-                        <p className="text-amber-700">Carte interactive</p>
-                        <p className="text-sm text-amber-600">(Une carte Google Maps sera intégrée ici)</p>
-                      </div>
+                    <div className="mb-6">
+                      <p className="font-semibold mb-1 text-lg">{locationDetails?.location?.name}</p>
+                      <p className="text-gray-700 mb-4">{locationDetails?.location?.address}</p>
+                      
+                      {/* Carte interactive */}
+                      <InteractiveMap locationDetails={locationDetails} />
                     </div>
                   </div>
                   
+                  {/* Hébergement */}
                   <div>
                     <div className="flex items-center mb-2">
                       <Home className="h-6 w-6 text-amber-600 mr-2" />
@@ -584,6 +576,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                     </div>
                   </div>
                   
+                  {/* Cadeaux */}
                   <div>
                     <div className="flex items-center mb-2">
                       <Gift className="h-6 w-6 text-amber-600 mr-2" />
@@ -603,7 +596,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                     </div>
                     <p className="ml-8">
                       Tenue décontractée et confortable. La soirée se déroulera en intérieur 
-                      et en extérieur selon la météo, prévoyez donc un vêtement chaud pour la soirée.
+                      et en extérieur selon la météo, prévoyez donc un vêtement passe partout pour la soirée.
                     </p>
                   </div>
                   
