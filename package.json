@@ -10,8 +10,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "cd client && npm run build",
     "install-all": "npm install && cd client && npm install",
-    "render-postbuild": "echo '🔧 Début du build...' && echo 'Working directory:' && pwd && echo 'Contenu actuel:' && ls -la && echo '📦 Installation des dépendances client...' && NPM_CONFIG_PRODUCTION=false npm install --prefix client && echo '🏗️  Build de l'application React...' && npm run build --prefix client && echo '✅ Build terminé!' && echo 'Vérification du build:' && ls -la client/ && if [ -d \"client/build\" ]; then echo '✅ Dossier build créé:' && ls -la client/build/ && echo '📁 Taille du build:' && du -sh client/build/; else echo '❌ Dossier build manquant!'; fi",
-    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client"
+    "render-postbuild": "./build.sh"
   },
   "keywords": [
     "invitation",
