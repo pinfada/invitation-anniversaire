@@ -2,7 +2,7 @@
   "name": "invitation-anniversaire",
   "version": "1.0.0",
   "description": "Site d'invitation pour un anniversaire avec QR codes personnalisés",
-  "main": "server.js",
+  "main": "server/server.js",
   "scripts": {
     "start": "node server.js",
     "server": "nodemon server.js",
