@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
+import { useAuth } from '../contexts/AuthContext';
 
 const PhotoShare = () => {
   const [photos, setPhotos] = useState([]);
@@ -9,13 +10,33 @@ const PhotoShare = () => {
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef(null);
+  const { authenticatedFetch } = useAuth();
   
   // Simuler le chargement des photos existantes depuis un backend
   useEffect(() => {
-    // Dans une implémentation réelle, nous ferions un appel API ici
-    const mockPhotos = [];
-    setPhotos(mockPhotos);
-    
+    // Charger les photos depuis le backend
+    const fetchPhotos = async () => {
+      try {
+        const res = await fetch('/api/photos');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            // Adapter au format local (timestamp objet Date)
+            const normalized = (data.photos || []).map(p => ({
+              id: p._id,
+              src: p.url,
+              timestamp: new Date(p.createdAt),
+              user: p.uploadedBy || 'Invité'
+            }));
+            setPhotos(normalized);
+          }
+        }
+      } catch (e) {
+        console.error('Erreur lors du chargement des photos:', e);
+      }
+    };
+    fetchPhotos();
+
     // Vérifier si le service worker est supporté
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js')
@@ -85,14 +106,43 @@ const PhotoShare = () => {
     if (!previewPhoto) return;
     
     setIsUploading(true);
-    
-    // Simuler un délai de téléchargement
-    setTimeout(() => {
-      // Dans une implémentation réelle, nous enverrions l'image au backend ici
-      setPhotos([previewPhoto, ...photos]);
+    try {
+      // Convertir dataURL -> Blob
+      const response = await fetch(previewPhoto.src);
+      const blob = await response.blob();
+      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+
+      // Préparer FormData
+      const formData = new FormData();
+      formData.append('photo', file);
+      formData.append('name', previewPhoto.user || 'Invité');
+
+      // Envoi au backend public (pas besoin JWT)
+      const uploadRes = await fetch('/api/photos', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.message || 'Erreur lors de l\'upload');
+      }
+
+      const data = await uploadRes.json();
+      const saved = {
+        id: data.photo._id,
+        src: data.photo.url,
+        timestamp: new Date(data.photo.createdAt),
+        user: data.photo.uploadedBy || 'Invité'
+      };
+      setPhotos([saved, ...photos]);
       setPreviewPhoto(null);
+    } catch (e) {
+      console.error('Upload échoué:', e);
+      alert(e.message || 'Erreur lors de l\'upload');
+    } finally {
       setIsUploading(false);
-    }, 1500);
+    }
   };
   
   const cancelUpload = () => {

@@ -1,7 +1,7 @@
 // server/routes/guestRoutes.js
 const express = require('express');
 const router = express.Router();
-const GuestModel = require('../../models/Guest'); // Correction de l'import
+const GuestModel = require('../models/guest');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const path = require('path');

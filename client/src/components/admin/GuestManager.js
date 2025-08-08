@@ -36,41 +36,25 @@ const GuestManager = () => {
       setIsLoading(true);
       setMessage(null);
       
-      // Vérifier que la clé API est disponible
-      const apiKey = localStorage.getItem('adminKey');
-      if (!apiKey) {
-        throw new Error('Non authentifié');
-      }
-      
-      // Récupérer la liste des invités
-      const guestsResponse = await fetch('/api/guests/list', {
-        headers: {
-          'x-api-key': apiKey
-        }
-      });
+      // Récupérer la liste des invités via JWT
+      const guestsResponse = await authenticatedFetch('/api/guests/list');
       
       if (!guestsResponse.ok) {
-        if (guestsResponse.status === 403) {
-          // Problème d'authentification
-          localStorage.removeItem('adminKey');
-          window.location.href = '/admin/login';
-          throw new Error('Session expirée');
-        }
-        
         const errorText = await guestsResponse.text();
         console.error('Erreur de réponse:', errorText);
         throw new Error(`Erreur lors de la récupération des invités (${guestsResponse.status})`);
       }
       
       const guestsData = await guestsResponse.json();
-      setGuests(guestsData.success ? guestsData.guests : []);
+      const normalizedGuests = (guestsData.success ? guestsData.guests : []).map(g => ({
+        ...g,
+        // Normaliser le champ de message pour l'UI
+        message: g.message ?? g.personalWelcomeMessage ?? ''
+      }));
+      setGuests(normalizedGuests);
       
-      // Récupérer les statistiques
-      const statsResponse = await fetch('/api/guests/stats', {
-        headers: {
-          'x-api-key': apiKey
-        }
-      });
+      // Récupérer les statistiques via JWT
+      const statsResponse = await authenticatedFetch('/api/guests/stats');
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
@@ -135,7 +119,7 @@ const GuestManager = () => {
       const guestToAdd = { 
         name: newGuest.name,
         email: newGuest.email,
-        message: welcomeMessage
+        personalWelcomeMessage: welcomeMessage
       };
       
       // Version temporaire pour l'UI
@@ -174,7 +158,7 @@ const GuestManager = () => {
         ...responseData,
         id: responseData._id,
         // S'assurer que le message est conservé
-        message: responseData.message || welcomeMessage
+        message: responseData.personalWelcomeMessage || responseData.message || welcomeMessage
       };
       
       // Remplacer l'entrée temporaire
@@ -273,11 +257,9 @@ const GuestManager = () => {
       
       // S'assurer que chaque invité a le bon format de champ 'message'
       const formattedGuests = realGuests.map(guest => ({
-        ...guest,
-        // Assurons-nous que le champ message est bien défini
-        message: guest.message || `Bienvenue ${guest.name} ! Nous sommes ravis de vous compter parmi nous.`
-        // Si personalWelcomeMessage existe encore quelque part, on le supprime
-        // personalWelcomeMessage: undefined
+        name: guest.name,
+        email: guest.email,
+        personalWelcomeMessage: guest.message || guest.personalWelcomeMessage || `Bienvenue ${guest.name} ! Nous sommes ravis de vous compter parmi nous.`
       }));
       
       const response = await authenticatedFetch('/api/guests/generate-guest-list', {
@@ -311,7 +293,7 @@ const GuestManager = () => {
               ...updatedGuests[index], 
               ...updatedGuest,
               // S'assurer que message est bien préservé
-              message: updatedGuest.message || updatedGuests[index].message
+              message: updatedGuest.personalWelcomeMessage || updatedGuest.message || updatedGuests[index].message
             };
           }
         });

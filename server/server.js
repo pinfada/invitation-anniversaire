@@ -193,7 +193,7 @@ const verifyAdminAccess = (req, res, next) => {
 };
 
 // ============ ROUTES D'AUTHENTIFICATION (JWT) ============
-const { router: authRouter } = require('./routes/authRoutes');
+const { router: authRouter, authenticateJWT } = require('./routes/authRoutes');
 app.use('/api/auth', authRouter);
 
 // ============ ROUTES DES INVITÉS ============
@@ -683,7 +683,7 @@ app.get('/api/photos', async (req, res) => {
 });
 
 // Route pour télécharger tous les QR codes
-app.get('/api/guests/download-qr-codes', verifyAdminAccess, async (req, res) => {
+app.get('/api/guests/download-qr-codes', authenticateJWT, async (req, res) => {
   try {
     console.log('Route /api/guests/download-qr-codes appelée');
     

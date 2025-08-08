@@ -75,8 +75,8 @@ const getEncryptionKey = async () => {
   const fingerprint = [
     navigator.userAgent,
     navigator.language,
-    screen.width,
-    screen.height,
+    (typeof window !== 'undefined' && window.screen ? window.screen.width : 0),
+    (typeof window !== 'undefined' && window.screen ? window.screen.height : 0),
     new Date().getTimezoneOffset(),
     navigator.hardwareConcurrency || 4
   ].join('|');
