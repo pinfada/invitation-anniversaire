@@ -19,18 +19,96 @@ const fsPromises = require('fs').promises;  // ✅ Import pour les opérations a
 const archiver = require('archiver');
 const { createReadStream } = require('fs');
 
-// Middleware de base
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization']
+// Middlewares de sécurité
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+// Configuration Helmet pour la sécurité des headers HTTP
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      scriptSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    }
+  },
+  crossOriginEmbedderPolicy: false // Nécessaire pour Firebase
 }));
+
+// Configuration CORS sécurisée avec whitelist de domaines
+const allowedOrigins = [
+  'http://localhost:3000', // Développement local
+  'https://invitation-anniversaire.onrender.com', // Production
+  process.env.FRONTEND_URL, // URL frontend depuis les variables d'environnement
+].filter(Boolean); // Filtrer les valeurs undefined
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Autoriser les requêtes sans origine (applications mobiles, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Vérifier si l'origine est dans la whitelist
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS: Origin non autorisée: ${origin}`);
+      callback(new Error('Non autorisé par la politique CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true, // Nécessaire pour les cookies JWT
+  optionsSuccessStatus: 200 // Support des anciens navigateurs
+}));
+
+// Rate limiting global
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limite de 100 requêtes par IP
+  message: {
+    success: false,
+    message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(globalLimiter);
+
+// Middleware de sanitisation
+const { sanitizeMiddleware } = require('./middleware/sanitization');
+app.use(sanitizeMiddleware());
+
+// Middleware de base
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(require('cookie-parser')());
 
 // Logs pour le débogage
 console.log('Démarrage du serveur...');
 console.log('Variables d\'environnement chargées:', process.env.ADMIN_PASSWORD_HASH ? 'Oui (ADMIN_PASSWORD_HASH)' : 'Non (ADMIN_PASSWORD_HASH manquant)');
+
+// Vérification des variables d'environnement critiques
+const requiredEnvVars = ['MONGODB_URI', 'ADMIN_PASSWORD_HASH'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('🚨 Variables d\'environnement manquantes:', missingEnvVars.join(', '));
+  console.error('⚠️  Vérifiez votre fichier .env ou vos variables d\'environnement');
+  
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ Arrêt du serveur en production');
+    process.exit(1);
+  } else {
+    console.warn('⚠️  Mode développement : continuez avec des valeurs par défaut');
+  }
+}
 
 // Configuration de la connexion MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/birthday-invitation', {
@@ -41,17 +119,24 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/birthday-
 .catch(err => console.error('Erreur de connexion à MongoDB:', err));
 
 // Configuration de Firebase (pour le stockage des photos)
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
-};
+let storage = null;
 
-const firebaseApp = initializeApp(firebaseConfig);
-const storage = getStorage(firebaseApp);
+if (process.env.FIREBASE_API_KEY && process.env.FIREBASE_STORAGE_BUCKET) {
+  const firebaseConfig = {
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  storage = getStorage(firebaseApp);
+  console.log('✅ Firebase configuré avec succès');
+} else {
+  console.warn('⚠️  Firebase non configuré - fonctionnalités de photos désactivées');
+}
 
 // Configuration de Multer pour le téléchargement des fichiers
 const upload = multer({
@@ -107,91 +192,13 @@ const verifyAdminAccess = (req, res, next) => {
   next();
 };
 
-// ============ ROUTES D'AUTHENTIFICATION ============
-// Route de connexion admin
-app.post('/api/auth/admin', async (req, res) => {
-  try {
-    console.log('Route /api/auth/admin appelée');
-    console.log('Corps de la requête:', req.body);
-    
-    const { password } = req.body;
-    
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le mot de passe est requis'
-      });
-    }
-    
-    // Vérifier le mot de passe (stocké en variable d'environnement)
-    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-    
-    if (!adminPasswordHash) {
-      console.error('ADMIN_PASSWORD_HASH non défini dans les variables d\'environnement');
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Erreur de configuration du serveur' 
-      });
-    }
-    
-    console.log('ADMIN_PASSWORD_HASH:', adminPasswordHash ? '**Défini**' : 'Non défini');
-    const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
-    console.log('Résultat de la comparaison:', isValidPassword);
-    
-    if (!isValidPassword) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Mot de passe incorrect' 
-      });
-    }
-    
-    // Générer une clé API temporaire
-    const apiKey = crypto.randomBytes(32).toString('hex');
-    
-    // Pour cette implémentation, on utilise process.env pour stocker temporairement la clé
-    process.env.ADMIN_API_KEY = apiKey;
-    
-    // Journaliser la connexion
-    console.log(`Connexion admin réussie: ${new Date().toISOString()}`);
-    
-    // Retourner la clé API avec durée de validité
-    res.json({
-      success: true,
-      message: 'Authentification réussie',
-      apiKey,
-      expiresIn: 3600 // 1 heure
-    });
-  } catch (error) {
-    console.error('Erreur d\'authentification:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur serveur' 
-    });
-  }
-});
+// ============ ROUTES D'AUTHENTIFICATION (JWT) ============
+const { router: authRouter } = require('./routes/authRoutes');
+app.use('/api/auth', authRouter);
 
-// Route de vérification de token
-app.post('/api/auth/verify', async (req, res) => {
-  try {
-    const apiKey = req.body.apiKey || req.headers['x-api-key'];
-    
-    if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
-      return res.status(403).json({
-        success: false,
-        message: 'Token invalide ou expiré'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Token valide',
-      user: { role: 'admin' }
-    });
-  } catch (error) {
-    console.error('Erreur de vérification:', error);
-    res.status(500).json({ success: false, message: 'Erreur serveur' });
-  }
-});
+// ============ ROUTES DES INVITÉS ============
+const guestRouter = require('./routes/guestRoutes');
+app.use('/api/guests', guestRouter);
 
 // ============ ENDPOINT HEALTH CHECK ============
 app.get('/api/health', (req, res) => {
@@ -397,11 +404,11 @@ app.post('/api/guests/generate-guest-list', verifyAdminAccess, async (req, res) 
           console.log(`Nouvel invité créé: ${guest.name} (${guest.email})`);
         }
         
-        // Générer un identifiant unique pour le QR code
-        const uniqueId = crypto.createHash('md5').update(guest.email + Date.now()).digest('hex').substring(0, 12);
+        // Générer un identifiant unique cryptographiquement sécurisé pour le QR code
+        const uniqueId = crypto.randomBytes(16).toString('hex');
         
-        // URL à encoder dans le QR code
-        const invitationUrl = `${process.env.BASE_URL || req.protocol + '://' + req.get('host')}/invitation?email=${encodeURIComponent(guest.email)}`;
+        // URL à encoder dans le QR code avec le code unique
+        const invitationUrl = `${process.env.BASE_URL || req.protocol + '://' + req.get('host')}/?code=${uniqueId}`;
         
         // Chemin du fichier QR code
         const qrFilename = `${uniqueId}.png`;
@@ -421,8 +428,26 @@ app.post('/api/guests/generate-guest-list', verifyAdminAccess, async (req, res) 
         // URL publique du QR code
         const qrCodeUrl = `/qr-codes/${qrFilename}`;
         
-        // Mettre à jour l'invité avec l'URL du QR code
+        // Vérifier l'unicité du code avant sauvegarde
+        let isUnique = false;
+        let attempts = 0;
+        while (!isUnique && attempts < 5) {
+          const existingGuest = await RSVP.findOne({ uniqueCode: uniqueId });
+          if (!existingGuest) {
+            isUnique = true;
+          } else {
+            uniqueId = crypto.randomBytes(16).toString('hex');
+            attempts++;
+          }
+        }
+        
+        if (!isUnique) {
+          throw new Error('Impossible de générer un code unique');
+        }
+
+        // Mettre à jour l'invité avec l'URL du QR code et le code unique
         dbGuest.qrCodeUrl = qrCodeUrl;
+        dbGuest.uniqueCode = uniqueId;
         await dbGuest.save();
         
         // Ajouter à la liste des invités traités
@@ -459,6 +484,51 @@ app.post('/api/guests/generate-guest-list', verifyAdminAccess, async (req, res) 
 });
 
 // ============ ROUTES INVITÉS ============
+// Route pour vérifier un code QR et récupérer les données de l'invité
+app.get('/api/guests/verify/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+    
+    if (!code) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Code QR manquant' 
+      });
+    }
+    
+    // Chercher l'invité avec ce code unique
+    const guest = await RSVP.findOne({ uniqueCode: code });
+    
+    if (!guest) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Code QR invalide ou expiré' 
+      });
+    }
+    
+    // Retourner les données de l'invité
+    res.status(200).json({
+      success: true,
+      guest: {
+        name: guest.name,
+        email: guest.email,
+        attending: guest.attending,
+        guests: guest.guests,
+        message: guest.message,
+        needsAccommodation: guest.needsAccommodation,
+        hasCheckedIn: guest.hasCheckedIn,
+        personalWelcomeMessage: guest.message || `Bienvenue ${guest.name} ! Nous sommes ravis de vous compter parmi nous.`
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la vérification du code QR:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur serveur lors de la vérification' 
+    });
+  }
+});
+
 // Routes pour le RSVP
 app.post('/api/rsvp', async (req, res) => {
   try {
@@ -529,8 +599,8 @@ app.get('/api/event-details', async (req, res) => {
     const eventDetails = {
       location: {
         name: "Villa Paradise",
-        address: "123 Route du Soleil, Nice",
-        coordinates: { lat: 43.7102, lng: 7.2620 }, // Coordonnées fictives
+        address: "18 Rue du Stade, 17000 La Rochelle, France",
+        coordinates: { lat: 46.1603986, lng: -1.1770363 },
         accessCode: "1234", // Code d'accès à la résidence
         parkingInfo: "Parking privé disponible sur place, code portail: 5678"
       },
@@ -558,6 +628,13 @@ app.get('/api/event-details', async (req, res) => {
 // Routes pour les photos
 app.post('/api/photos', upload.single('photo'), async (req, res) => {
   try {
+    if (!storage) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Service de photos non disponible - Firebase non configuré' 
+      });
+    }
+
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Aucune photo téléchargée' });
     }

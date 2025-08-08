@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs').promises;
 const rateLimit = require('express-rate-limit');
+const { authenticateJWT } = require('./authRoutes');
 
 // Configuration des limites de requêtes pour prévenir les abus
 const apiLimiter = rateLimit({
@@ -22,16 +23,8 @@ const verifyLimiter = rateLimit({
   message: { success: false, message: 'Trop de tentatives de vérification, veuillez réessayer plus tard' }
 });
 
-// Middleware d'authentification admin
-const verifyAdminAccess = (req, res, next) => {
-  const apiKey = req.headers['x-api-key'];
-  
-  if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
-    return res.status(403).json({ success: false, message: 'Accès non autorisé' });
-  }
-  
-  next();
-};
+// Alias pour le middleware JWT pour compatibilité avec le code existant
+const verifyAdminAccess = authenticateJWT;
 
 // Utilitaires de validation
 const validators = {

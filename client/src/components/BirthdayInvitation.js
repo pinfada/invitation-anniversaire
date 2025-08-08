@@ -199,14 +199,14 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       const mockLocationDetails = {
         location: {
           name: "Villa Paradise",
-          address: "123 Route du Soleil, Nice",
-          coordinates: { lat: 43.7102, lng: 7.2620 },
+          address: "18 Rue du Stade, 17000 La Rochelle",
+          coordinates: { lat: 46.1603986, lng: -1.1770363 },
           accessCode: "1234",
-          parkingInfo: "Parking privé disponible sur place, code portail: 5678"
+          parkingInfo: "Parking gratuit"
         },
         accommodationInfo: {
-          checkIn: "Vendredi 11 août 2025 à partir de 14h",
-          checkOut: "Dimanche 14 août 2025 avant 12h",
+          checkIn: "Lundi 11 août 2025 à partir de 15h",
+          checkOut: "Jeudi 14 août 2025 avant 10h",
           amenities: [
             "Piscine chauffée",
             "5 chambres avec salle de bain",
@@ -215,7 +215,7 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
             "Barbecue et plancha"
           ]
         },
-        additionalInfo: "N'hésitez pas à apporter maillot de bain et serviette. Des activités sont prévues tout au long du weekend."
+        additionalInfo: "N'hésitez pas à apporter maillot de bain et serviette. Des activités sont prévues tout au long du weekend. Il fera chaud! prévoyez un ventilo!"
       };
       
       setLocationDetails(mockLocationDetails);
@@ -268,20 +268,24 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       // Construction du token CSRF pour la requête (dans une implémentation réelle)
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       
-      // Dans une implémentation réelle, ce serait un appel API
-      // const response = await fetch('/api/guests/rsvp', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'X-CSRF-Token': csrfToken || ''
-      //   },
-      //   body: JSON.stringify(rsvpData)
-      // });
+      // Appel API réel
+      const response = await fetch('/api/rsvp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(rsvpData)
+      });
       
-      // const data = await response.json();
+      // Vérifier si l'appel a réussi
+      if (!response.ok) {
+        throw new Error('Erreur serveur lors de l\'envoi de la réponse');
+      }
       
-      // Pour la démonstration, simuler une réponse du serveur
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Erreur lors de l\'envoi');
+      }
       
       const updatedData = {
         attending: attending === 'yes',
@@ -295,6 +299,14 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
       // Mettre à jour les données de l'invité
       if (updateGuestData) {
         updateGuestData(updatedData);
+      }
+      
+      // Si l'invité a confirmé sa présence, donner accès aux détails de localisation
+      if (data.locationAccess) {
+        setHasLocationAccess(true);
+        localStorage.setItem('locationAccess', 'true');
+        localStorage.setItem('userEmail', email);
+        fetchLocationDetails(email);
       }
       
       // Si la personne participe, lui donner accès aux détails du lieu

@@ -1,20 +1,24 @@
 // client/src/contexts/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { adminStorage } from '../utils/secureStorage';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [adminKey, setAdminKey] = useState(localStorage.getItem('adminKey') || null);
+  const [adminKey, setAdminKey] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const navigate = useNavigate();
   
-  // Vérifier la validité de la clé API au chargement
+  // Charger et vérifier la validité de la clé API au chargement
   useEffect(() => {
-    const verifyAdminKey = async () => {
-      if (!adminKey) {
+    const loadAndVerifyAdminKey = async () => {
+      const savedKey = await adminStorage.load();
+      setAdminKey(savedKey);
+      
+      if (!savedKey) {
         setIsAdmin(false);
         setIsLoading(false);
         return;
@@ -27,7 +31,7 @@ export const AuthProvider = ({ children }) => {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ apiKey: adminKey })
+          body: JSON.stringify({ apiKey: savedKey })
         });
         
         const data = await response.json();
@@ -35,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         if (!response.ok) {
           // Gestion des différents codes d'erreur
           if (response.status === 403) {
-            localStorage.removeItem('adminKey');
+            adminStorage.remove();
             setAdminKey(null);
             setIsAdmin(false);
             setAuthError('Clé d\'administration invalide ou expirée');
@@ -49,7 +53,7 @@ export const AuthProvider = ({ children }) => {
           setAuthError(null);
         } else {
           // Réponse success: false
-          localStorage.removeItem('adminKey');
+          adminStorage.remove();
           setAdminKey(null);
           setIsAdmin(false);
           setAuthError(data.message || 'Erreur de vérification des droits d\'administration');
@@ -63,8 +67,8 @@ export const AuthProvider = ({ children }) => {
       }
     };
     
-    verifyAdminKey();
-  }, [adminKey]);
+    loadAndVerifyAdminKey();
+  }, []);
   
   // Fonction de connexion admin
   const adminLogin = async (password) => {
@@ -86,8 +90,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Échec de l\'authentification');
       }
       
-      // Stocker la clé API retournée
-      localStorage.setItem('adminKey', data.apiKey);
+      // Stocker la clé API retournée de manière sécurisée
+      await adminStorage.save(data.apiKey);
       setAdminKey(data.apiKey);
       setIsAdmin(true);
       return true;
@@ -102,7 +106,7 @@ export const AuthProvider = ({ children }) => {
   
   // Fonction de déconnexion
   const logout = () => {
-    localStorage.removeItem('adminKey');
+    adminStorage.remove();
     setAdminKey(null);
     setIsAdmin(false);
     navigate('/admin/login');
