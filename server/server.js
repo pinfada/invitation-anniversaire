@@ -31,6 +31,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
+      // Interdire l'inline; les scripts sont maintenant externes
       scriptSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameSrc: ["'none'"],

@@ -117,50 +117,7 @@
     
     <div id="root"></div>
     
-    <!-- Script pour gérer le loader et la détection hors ligne -->
-    <script>
-      // Attendez que le DOM soit complètement chargé
-      document.addEventListener('DOMContentLoaded', function() {
-        // Récupérer l'élément une fois que le DOM est chargé
-        var offlineMessage = document.getElementById('offline-message');
-        
-        // Afficher le message hors ligne si nécessaire
-        if (offlineMessage && !navigator.onLine) {
-          offlineMessage.style.display = 'flex';
-        }
-        
-        // Écouter les changements de connectivité
-        window.addEventListener('online', function() {
-          if (offlineMessage) {
-            offlineMessage.style.display = 'none';
-          }
-        });
-        
-        window.addEventListener('offline', function() {
-          if (offlineMessage) {
-            offlineMessage.style.display = 'flex';
-          }
-        });
-        
-        // Masquer le loader une fois l'application chargée
-        window.addEventListener('load', function() {
-          const loader = document.getElementById('loader');
-          
-          if (loader) {
-            // Si l'application est prête après un petit délai
-            setTimeout(function() {
-              loader.classList.add('fade-out');
-              
-              // Supprimer complètement après la transition
-              setTimeout(function() {
-                if (loader.parentNode) {
-                  loader.parentNode.removeChild(loader);
-                }
-              }, 300);
-            }, 500);
-          }
-        });
-      });
-    </script>
+    <!-- Script externe pour gérer le loader et la détection hors ligne (évite inline CSP) -->
+    <script src="%PUBLIC_URL%/loader.js" defer></script>
   </body>
 </html>
