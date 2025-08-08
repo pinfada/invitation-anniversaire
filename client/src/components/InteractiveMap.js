@@ -11,9 +11,9 @@ const InteractiveMap = ({ locationDetails }) => {
   const [distance, setDistance] = useState(null);
 
   // Configuration de la carte
-  const eventLocation = locationDetails?.location?.coordinates || { lat: 43.7102, lng: 7.2620 };
-  const locationName = locationDetails?.location?.name || "Villa Paradise";
-  const locationAddress = locationDetails?.location?.address || "123 Route du Soleil, Nice";
+  const eventLocation = locationDetails?.location?.coordinates || { lat: 46.1603986, lng: -1.1770363 };
+  const locationName = locationDetails?.location?.name || "Villa pour les vacances";
+  const locationAddress = locationDetails?.location?.address || "18 Rue du Stade, 17000 La Rochelle, France, La Rochelle";
 
   // Charger Leaflet CSS et JS
   useEffect(() => {
