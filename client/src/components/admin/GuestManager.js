@@ -392,6 +392,7 @@ const GuestManager = () => {
   }
   
   return (
+    <>
     <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
       <div className="bg-white rounded-lg shadow-xl">
         <div className="p-4 sm:p-6 border-b border-gray-200">
@@ -693,6 +694,7 @@ const GuestManager = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
