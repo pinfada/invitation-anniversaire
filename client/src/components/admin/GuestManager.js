@@ -392,167 +392,179 @@ const GuestManager = () => {
   }
   
   return (
-    <div className="max-w-4xl mx-auto p-4 bg-white rounded-lg shadow">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-amber-800">Gestion des invités</h2>
-        
-        <button 
-          onClick={logout}
-          className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded transition"
-        >
-          Déconnexion
-        </button>
-      </div>
-      
-      {/* Affichage des messages */}
-      <MessageDisplay message={message} />
-      
-      {/* Statistiques */}
-      {stats && (
-        <div className="mb-6 p-4 bg-amber-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-amber-700">Statistiques</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-3 rounded shadow-sm">
-              <div className="text-amber-600 font-medium">Total invités</div>
-              <div className="text-2xl font-bold">{stats.totalGuests}</div>
-            </div>
-            <div className="bg-white p-3 rounded shadow-sm">
-              <div className="text-amber-600 font-medium">Confirmés</div>
-              <div className="text-2xl font-bold">{stats.attendingGuests}</div>
-              <div className="text-xs text-gray-500">{stats.confirmationRate}% des réponses</div>
-            </div>
-            <div className="bg-white p-3 rounded shadow-sm">
-              <div className="text-amber-600 font-medium">Total participants</div>
-              <div className="text-2xl font-bold">{stats.totalAttendees}</div>
-              <div className="text-xs text-gray-500">Invités + accompagnants</div>
-            </div>
-            <div className="bg-white p-3 rounded shadow-sm">
-              <div className="text-amber-600 font-medium">Hébergements</div>
-              <div className="text-2xl font-bold">{stats.accommodationNeeded}</div>
-              <div className="text-xs text-gray-500">Besoins de logement</div>
-            </div>
+    <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
+      <div className="bg-white rounded-lg shadow-xl">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-amber-800">Gestion des invités</h2>
+            
+            <button 
+              onClick={logout}
+              className="w-full sm:w-auto px-4 py-2 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-700 rounded-lg transition touch-manipulation text-sm sm:text-base"
+            >
+              Déconnexion
+            </button>
           </div>
         </div>
-      )}
       
-      {/* Formulaire d'ajout d'invité */}
-      <div className="mb-8 p-4 border border-amber-200 rounded-lg bg-amber-50">
-        <h3 className="text-lg font-semibold mb-3 text-amber-700">Ajouter un invité</h3>
-        
-        <div className="grid md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm text-amber-700 mb-1">Nom*</label>
-            <input 
-              type="text" 
-              name="name" 
-              value={newGuest.name} 
-              onChange={handleInputChange} 
-              className={`w-full p-2 border rounded ${
-                errors.name ? 'border-red-500 bg-red-50' : 'border-amber-300'
-              }`}
-              placeholder="Nom de l'invité"
-              disabled={isLoading}
-            />
-            {errors.name && (
-              <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-            )}
+        {/* Affichage des messages */}
+        {message && (
+          <div className="p-4 sm:p-6">
+            <MessageDisplay message={message} />
           </div>
-          
-          <div>
-            <label className="block text-sm text-amber-700 mb-1">Email*</label>
-            <input 
-              type="email" 
-              name="email" 
-              value={newGuest.email} 
-              onChange={handleInputChange} 
-              className={`w-full p-2 border rounded ${
-                errors.email ? 'border-red-500 bg-red-50' : 'border-amber-300'
-              }`}
-              placeholder="email@exemple.com"
-              disabled={isLoading}
-            />
-            {errors.email && (
-              <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-            )}
-          </div>
-          
-          <div>
-            <label className="block text-sm text-amber-700 mb-1">Message personnalisé</label>
-            <input 
-              type="text" 
-              name="message" 
-              value={newGuest.message} 
-              onChange={handleInputChange} 
-              className="w-full p-2 border border-amber-300 rounded"
-              placeholder="Message d'accueil personnalisé"
-              disabled={isLoading}
-            />
-          </div>
-        </div>
-        
-        <button 
-          onClick={addGuest}
-          disabled={isLoading}
-          className={`flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded transition ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <Plus size={18} className="mr-1" />
-          Ajouter
-        </button>
-      </div>
+        )}
       
-      {/* Liste des invités */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-semibold text-amber-700">
-            Liste des invités ({guests.length})
-          </h3>
+        {/* Statistiques */}
+        {stats && (
+          <div className="p-4 sm:p-6 bg-amber-50 border-b border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 text-amber-700">Statistiques</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
+                <div className="text-amber-600 font-medium text-sm">Total invités</div>
+                <div className="text-xl sm:text-2xl font-bold">{stats.totalGuests}</div>
+              </div>
+              <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
+                <div className="text-amber-600 font-medium text-sm">Confirmés</div>
+                <div className="text-xl sm:text-2xl font-bold">{stats.attendingGuests}</div>
+                <div className="text-xs text-gray-500">{stats.confirmationRate}% des réponses</div>
+              </div>
+              <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
+                <div className="text-amber-600 font-medium text-sm">Total participants</div>
+                <div className="text-xl sm:text-2xl font-bold">{stats.totalAttendees}</div>
+                <div className="text-xs text-gray-500">Invités + accompagnants</div>
+              </div>
+              <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
+                <div className="text-amber-600 font-medium text-sm">Hébergements</div>
+                <div className="text-xl sm:text-2xl font-bold">{stats.accommodationNeeded}</div>
+                <div className="text-xs text-gray-500">Besoins de logement</div>
+              </div>
+            </div>
+          </div>
+        )}
+      
+        {/* Formulaire d'ajout d'invité */}
+        <div className="p-4 sm:p-6 border-b border-gray-200 bg-amber-50">
+          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-amber-700">Ajouter un invité</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4">
+            <div>
+              <label className="block text-xs sm:text-sm text-amber-700 mb-1">Nom*</label>
+              <input 
+                type="text" 
+                name="name" 
+                value={newGuest.name} 
+                onChange={handleInputChange} 
+                className={`w-full p-2.5 sm:p-3 border rounded-lg text-sm sm:text-base touch-manipulation ${
+                  errors.name ? 'border-red-500 bg-red-50' : 'border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200'
+                }`}
+                placeholder="Nom de l'invité"
+                disabled={isLoading}
+              />
+              {errors.name && (
+                <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-xs sm:text-sm text-amber-700 mb-1">Email*</label>
+              <input 
+                type="email" 
+                name="email" 
+                value={newGuest.email} 
+                onChange={handleInputChange} 
+                className={`w-full p-2.5 sm:p-3 border rounded-lg text-sm sm:text-base touch-manipulation ${
+                  errors.email ? 'border-red-500 bg-red-50' : 'border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200'
+                }`}
+                placeholder="email@exemple.com"
+                disabled={isLoading}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-xs sm:text-sm text-amber-700 mb-1">Message personnalisé</label>
+              <input 
+                type="text" 
+                name="message" 
+                value={newGuest.message} 
+                onChange={handleInputChange} 
+                className="w-full p-2.5 sm:p-3 border border-amber-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-sm sm:text-base touch-manipulation"
+                placeholder="Message d'accueil personnalisé"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
           
           <button 
-            onClick={fetchGuestsAndStats}
+            onClick={addGuest}
             disabled={isLoading}
-            className={`text-amber-600 hover:text-amber-800 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Rafraîchir la liste"
+            className={`w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-lg transition touch-manipulation text-sm sm:text-base ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
-            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+            <Plus size={16} className="mr-2" />
+            Ajouter
           </button>
         </div>
+      
+        {/* Liste des invités */}
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3 mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-amber-700">
+              Liste des invités ({guests.length})
+            </h3>
+            
+            <button 
+              onClick={fetchGuestsAndStats}
+              disabled={isLoading}
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 text-amber-600 hover:text-amber-800 active:text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg transition touch-manipulation text-sm ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Rafraîchir la liste"
+            >
+              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <span className="sm:hidden">Actualiser</span>
+            </button>
+          </div>
         
-        {guests.length === 0 ? (
-          <p className="text-amber-600 italic">Aucun invité ajouté pour le moment</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="bg-amber-100">
-                  <th className="border border-amber-300 p-2 text-left">Nom</th>
-                  <th className="border border-amber-300 p-2 text-left">Email</th>
-                  <th className="border border-amber-300 p-2 text-left">Message personnalisé</th>
-                  <th className="border border-amber-300 p-2 text-center">Statut</th>
-                  <th className="border border-amber-300 p-2 text-center">QR Code</th>
-                  <th className="border border-amber-300 p-2 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {guests.map(guest => (
-                  <tr key={guest.id || guest._id} className={`hover:bg-amber-50 ${guest.isTemp ? 'opacity-60' : ''}`}>
-                    <td className="border border-amber-300 p-2">
-                      {guest.name}
-                      {guest.isTemp && <span className="ml-2 italic text-amber-500 text-xs">(en cours d'ajout...)</span>}
-                    </td>
-                    <td className="border border-amber-300 p-2">{guest.email}</td>
-                    <td className="border border-amber-300 p-2 text-sm">{guest.message}</td>
-                    <td className="border border-amber-300 p-2 text-center">
+          {guests.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-amber-600 italic text-sm sm:text-base">Aucun invité ajouté pour le moment</p>
+            </div>
+          ) : (
+            <div className="block sm:hidden space-y-3">
+              {/* Affichage mobile : cartes */}
+              {guests.map(guest => (
+                <div key={guest.id || guest._id} className={`bg-white border border-amber-200 rounded-lg p-4 ${guest.isTemp ? 'opacity-60' : ''}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-amber-800 truncate">
+                        {guest.name}
+                        {guest.isTemp && <span className="ml-2 italic text-amber-500 text-xs">(en cours...)</span>}
+                      </h4>
+                      <p className="text-sm text-gray-600 truncate">{guest.email}</p>
+                    </div>
+                    <button 
+                      onClick={() => removeGuest(guest.id || guest._id)}
+                      disabled={isLoading}
+                      className={`text-red-500 hover:text-red-700 active:text-red-800 p-2 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title="Supprimer"
+                    >
+                      <Trash size={16} />
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-3">
                       {guest.attending === true && (
                         <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                          <Check size={12} className="mr-1" />
+                          <Check size={10} className="mr-1" />
                           Confirmé
                         </span>
                       )}
                       {guest.attending === false && (
                         <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                          <X size={12} className="mr-1" />
+                          <X size={10} className="mr-1" />
                           Décliné
                         </span>
                       )}
@@ -561,57 +573,124 @@ const GuestManager = () => {
                           En attente
                         </span>
                       )}
-                    </td>
-                    <td className="border border-amber-300 p-2 text-center">
-                      {guest.qrCodeUrl ? (
-                        <a href={guest.qrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-800">
-                          <QrCode size={18} />
+                      
+                      {guest.qrCodeUrl && (
+                        <a href={guest.qrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-800 p-1">
+                          <QrCode size={14} />
                         </a>
-                      ) : (
-                        <span className="text-amber-400">Non généré</span>
                       )}
-                    </td>
-                    <td className="border border-amber-300 p-2 text-center">
-                      <button 
-                        onClick={() => removeGuest(guest.id || guest._id)}
-                        disabled={isLoading}
-                        className={`text-red-500 hover:text-red-700 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title="Supprimer"
-                      >
-                        <Trash size={18} />
-                      </button>
-                    </td>
+                    </div>
+                  </div>
+                  
+                  {guest.message && (
+                    <p className="text-xs text-gray-500 mt-2 italic truncate" title={guest.message}>
+                      "{guest.message}"
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Affichage desktop : tableau */}
+          {guests.length > 0 && (
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="bg-amber-100">
+                    <th className="border border-amber-300 p-2 text-left text-xs sm:text-sm">Nom</th>
+                    <th className="border border-amber-300 p-2 text-left text-xs sm:text-sm">Email</th>
+                    <th className="border border-amber-300 p-2 text-left text-xs sm:text-sm">Message</th>
+                    <th className="border border-amber-300 p-2 text-center text-xs sm:text-sm">Statut</th>
+                    <th className="border border-amber-300 p-2 text-center text-xs sm:text-sm">QR Code</th>
+                    <th className="border border-amber-300 p-2 text-center text-xs sm:text-sm">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {guests.map(guest => (
+                    <tr key={guest.id || guest._id} className={`hover:bg-amber-50 ${guest.isTemp ? 'opacity-60' : ''}`}>
+                      <td className="border border-amber-300 p-2 text-xs sm:text-sm">
+                        <div>
+                          {guest.name}
+                          {guest.isTemp && <div className="italic text-amber-500 text-xs">(en cours...)</div>}
+                        </div>
+                      </td>
+                      <td className="border border-amber-300 p-2 text-xs sm:text-sm break-all">{guest.email}</td>
+                      <td className="border border-amber-300 p-2 text-xs max-w-xs truncate" title={guest.message}>{guest.message}</td>
+                      <td className="border border-amber-300 p-2 text-center">
+                        {guest.attending === true && (
+                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            <Check size={10} className="mr-1" />
+                            OK
+                          </span>
+                        )}
+                        {guest.attending === false && (
+                          <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                            <X size={10} className="mr-1" />
+                            Non
+                          </span>
+                        )}
+                        {guest.attending === null && !guest.isTemp && (
+                          <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                            Attente
+                          </span>
+                        )}
+                      </td>
+                      <td className="border border-amber-300 p-2 text-center">
+                        {guest.qrCodeUrl ? (
+                          <a href={guest.qrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-800 p-1 inline-block">
+                            <QrCode size={16} />
+                          </a>
+                        ) : (
+                          <span className="text-amber-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="border border-amber-300 p-2 text-center">
+                        <button 
+                          onClick={() => removeGuest(guest.id || guest._id)}
+                          disabled={isLoading}
+                          className={`text-red-500 hover:text-red-700 active:text-red-800 p-1 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Supprimer"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
       </div>
       
-      {/* Actions de groupe */}
-      <div className="flex flex-wrap gap-4 mt-6">
-        <button 
-          onClick={generateQRCodes}
-          disabled={isLoading || guests.length === 0 || guests.some(g => g.isTemp)}
-          className={`flex items-center px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition ${
-            (isLoading || guests.length === 0 || guests.some(g => g.isTemp)) ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <QrCode size={18} className="mr-2" />
-          Générer les QR codes
-        </button>
-        
-        <button 
-          onClick={downloadAllQRCodes}
-          disabled={isLoading || guests.length === 0 || !guests.some(g => g.qrCodeUrl)}
-          className={`flex items-center px-6 py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-lg shadow transition ${
-            (isLoading || guests.length === 0 || !guests.some(g => g.qrCodeUrl)) ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <Download size={18} className="mr-2" />
-          Télécharger tous les QR codes
-        </button>
+          {/* Actions de groupe */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button 
+                onClick={generateQRCodes}
+                disabled={isLoading || guests.length === 0 || guests.some(g => g.isTemp)}
+                className={`flex items-center justify-center px-6 py-3 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-lg shadow-lg transition touch-manipulation text-sm sm:text-base ${
+                  (isLoading || guests.length === 0 || guests.some(g => g.isTemp)) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <QrCode size={16} className="mr-2" />
+                Générer les QR codes
+              </button>
+              
+              <button 
+                onClick={downloadAllQRCodes}
+                disabled={isLoading || guests.length === 0 || !guests.some(g => g.qrCodeUrl)}
+                className={`flex items-center justify-center px-6 py-3 bg-amber-700 hover:bg-amber-800 active:bg-amber-900 text-white rounded-lg shadow-lg transition touch-manipulation text-sm sm:text-base ${
+                  (isLoading || guests.length === 0 || !guests.some(g => g.qrCodeUrl)) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <Download size={16} className="mr-2" />
+                <span className="hidden sm:inline">Télécharger tous les QR codes</span>
+                <span className="sm:hidden">Télécharger QR codes</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

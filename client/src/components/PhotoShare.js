@@ -4,17 +4,26 @@ import { Camera, Upload, X } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { useAuth } from '../contexts/AuthContext';
 
-const PhotoShare = () => {
+const PhotoShare = ({ guestData }) => {
   const [photos, setPhotos] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [uploaderName, setUploaderName] = useState('');
+  const [showNameInput, setShowNameInput] = useState(true);
   const fileInputRef = useRef(null);
   const { authenticatedFetch } = useAuth();
   
-  // Simuler le chargement des photos existantes depuis un backend
+  // Charger le nom de l'invité depuis les données
   useEffect(() => {
-    // Charger les photos depuis le backend
+    if (guestData?.name) {
+      setUploaderName(guestData.name);
+      setShowNameInput(false);
+    }
+  }, [guestData]);
+  
+  // Charger les photos existantes depuis le backend
+  useEffect(() => {
     const fetchPhotos = async () => {
       try {
         const res = await fetch('/api/photos');
@@ -78,7 +87,7 @@ const PhotoShare = () => {
           id: `temp-${Date.now()}`,
           src: reader.result,
           timestamp: new Date(),
-          user: 'Moi',
+          user: uploaderName || 'Invité',
           originalSize: file.size,
           compressedSize: compressedFile.size
         });
@@ -95,7 +104,7 @@ const PhotoShare = () => {
           id: `temp-${Date.now()}`,
           src: reader.result,
           timestamp: new Date(),
-          user: 'Moi'
+          user: uploaderName || 'Invité'
         });
       };
       reader.readAsDataURL(file);
@@ -115,7 +124,7 @@ const PhotoShare = () => {
       // Préparer FormData
       const formData = new FormData();
       formData.append('photo', file);
-      formData.append('name', previewPhoto.user || 'Invité');
+      formData.append('name', uploaderName || previewPhoto.user || 'Invité');
 
       // Envoi au backend public (pas besoin JWT)
       const uploadRes = await fetch('/api/photos', {
@@ -151,10 +160,30 @@ const PhotoShare = () => {
   
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 p-4">
-      <header className="bg-amber-800 text-white p-4 rounded-lg mb-6">
-        <h1 className="text-xl font-bold text-center">Partagez vos photos</h1>
+    <div className="min-h-screen bg-gradient-to-br from-amber-100 to-rose-100 p-3 sm:p-4">
+      <header className="bg-amber-800 text-white p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
+        <h1 className="text-lg sm:text-xl font-bold text-center">Partagez vos photos</h1>
       </header>
+      
+      {/* Input pour le nom si pas d'invité connecté */}
+      {showNameInput && (
+        <div className="bg-white p-4 rounded-lg shadow-lg mb-4 sm:mb-6">
+          <label className="block text-amber-700 mb-2 font-semibold text-sm sm:text-base">Votre nom</label>
+          <input 
+            type="text" 
+            value={uploaderName} 
+            onChange={(e) => setUploaderName(e.target.value)}
+            placeholder="Entrez votre nom"
+            className="w-full p-3 border border-amber-300 rounded-lg focus:ring focus:ring-amber-200 focus:border-amber-500 text-base touch-manipulation"
+          />
+          <button 
+            onClick={() => setShowNameInput(false)}
+            className="mt-3 w-full sm:w-auto px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 active:bg-amber-800 transition touch-manipulation"
+          >
+            Continuer
+          </button>
+        </div>
+      )}
       
       <input 
         type="file" 
@@ -166,77 +195,88 @@ const PhotoShare = () => {
       />
 
       {compressionProgress > 0 && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-4 rounded-lg w-64">
-            <p className="text-center mb-2">Optimisation de l'image...</p>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg w-full max-w-sm">
+            <p className="text-center mb-3 text-sm sm:text-base">Optimisation de l'image...</p>
             <div className="h-2 bg-gray-200 rounded-full">
               <div 
                 className="h-full bg-amber-600 rounded-full transition-all duration-300" 
                 style={{width: `${compressionProgress}%`}}
               />
             </div>
+            <p className="text-center mt-2 text-xs text-gray-600">{compressionProgress}%</p>
           </div>
         </div>
       )}
       
-      {previewPhoto ? (
-        <div className="bg-white p-4 rounded-lg shadow-lg mb-6">
+      {!showNameInput && previewPhoto ? (
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-lg mb-4 sm:mb-6">
           <div className="relative">
             <img 
               src={previewPhoto.src} 
               alt="Aperçu" 
-              className="w-full h-auto rounded-lg"
+              className="w-full h-auto rounded-lg max-h-80 sm:max-h-96 object-contain"
             />
             <button 
               onClick={cancelUpload}
-              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
+              className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white p-2 rounded-full touch-manipulation shadow-lg"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
           
           <button 
             onClick={handleUpload}
             disabled={isUploading}
-            className={`w-full mt-4 py-3 rounded-lg flex items-center justify-center ${
-              isUploading ? 'bg-amber-400' : 'bg-amber-600'
-            } text-white font-semibold`}
+            className={`w-full mt-4 py-3.5 rounded-lg flex items-center justify-center ${
+              isUploading ? 'bg-amber-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
+            } text-white font-semibold touch-manipulation transition`}
           >
-            {isUploading ? 'Envoi en cours...' : 'Partager la photo'}
-            <Upload className="ml-2" size={18} />
+            <span className="flex items-center">
+              {isUploading ? 'Envoi en cours...' : 'Partager la photo'}
+              {!isUploading && <Upload className="ml-2" size={18} />}
+            </span>
           </button>
         </div>
-      ) : (
+      ) : !showNameInput ? (
         <button 
           onClick={handlePhotoCapture}
-          className="w-full bg-amber-600 hover:bg-amber-700 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center mb-6"
+          className="w-full bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white p-4 sm:p-6 rounded-lg shadow-lg flex flex-col items-center justify-center mb-4 sm:mb-6 touch-manipulation transition"
         >
-          <Camera size={48} className="mb-2" />
-          <span className="text-lg font-semibold">Prendre une photo</span>
+          <Camera size={40} className="sm:size-48 mb-2" />
+          <span className="text-lg sm:text-xl font-semibold">Prendre une photo</span>
+          <span className="text-sm opacity-90 mt-1 text-center">Partagé par {uploaderName}</span>
         </button>
-      )}
+      ) : null}
       
-      <div className="bg-white bg-opacity-80 p-4 rounded-lg">
-        <h2 className="text-lg font-semibold mb-4 text-amber-800">Photos partagées</h2>
+      <div className="bg-white bg-opacity-80 p-3 sm:p-4 rounded-lg">
+        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-amber-800">Photos partagées</h2>
         
         {photos.length === 0 ? (
-          <div className="text-center py-8 text-amber-600">
-            <p>Aucune photo partagée pour le moment</p>
+          <div className="text-center py-6 sm:py-8 text-amber-600">
+            <p className="text-sm sm:text-base">Aucune photo partagée pour le moment</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             {photos.map((photo) => (
-              <div key={photo.id} className="relative rounded-lg overflow-hidden shadow">
+              <div key={photo.id} className="relative rounded-lg overflow-hidden shadow-lg aspect-square group">
                 <img 
                   src={photo.src} 
-                  alt="Photo partagée" 
-                  className="w-full h-auto"
+                  alt={`Partagée par ${photo.user}`} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 text-sm">
-                  <p>{photo.user}</p>
-                  <p className="text-xs opacity-75">
-                    {photo.timestamp.toLocaleString()}
-                  </p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute bottom-2 left-2 right-2 text-white">
+                    <p className="font-medium text-sm truncate">{photo.user}</p>
+                    <p className="text-xs opacity-75">
+                      {photo.timestamp.toLocaleString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}

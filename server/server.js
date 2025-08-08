@@ -176,6 +176,9 @@ const photoSchema = new mongoose.Schema({
   url: { type: String, required: true },
   thumbnailUrl: { type: String },
   uploadedBy: { type: String, required: true },
+  filename: { type: String },
+  size: { type: Number },
+  mimetype: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -629,46 +632,73 @@ app.get('/api/event-details', async (req, res) => {
 // Routes pour les photos
 app.post('/api/photos', upload.single('photo'), async (req, res) => {
   try {
-    if (!storage) {
-      return res.status(503).json({ 
-        success: false, 
-        message: 'Service de photos non disponible - Firebase non configuré' 
-      });
-    }
-
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Aucune photo téléchargée' });
     }
     
     const { name } = req.body;
+    let photoUrl;
     
-    // Générer un nom de fichier unique
-    const timestamp = Date.now();
-    const filename = `photos/${timestamp}_${req.file.originalname}`;
-    
-    // Référence au fichier dans Firebase Storage
-    const storageRef = ref(storage, filename);
-    
-    // Télécharger le fichier
-    await uploadBytes(storageRef, req.file.buffer, {
-      contentType: req.file.mimetype
-    });
-    
-    // Obtenir l'URL de téléchargement
-    const photoUrl = await getDownloadURL(storageRef);
+    if (storage) {
+      // Utiliser Firebase Storage si configuré
+      console.log('Utilisation de Firebase Storage pour les photos');
+      const timestamp = Date.now();
+      const filename = `photos/${timestamp}_${req.file.originalname}`;
+      
+      // Référence au fichier dans Firebase Storage
+      const storageRef = ref(storage, filename);
+      
+      // Télécharger le fichier
+      await uploadBytes(storageRef, req.file.buffer, {
+        contentType: req.file.mimetype
+      });
+      
+      // Obtenir l'URL de téléchargement
+      photoUrl = await getDownloadURL(storageRef);
+    } else {
+      // Système de stockage local comme fallback
+      console.log('Utilisation du stockage local pour les photos');
+      
+      const uploadsDir = path.join(__dirname, 'public/uploads/photos');
+      
+      // Créer le dossier s'il n'existe pas
+      try {
+        await fsPromises.mkdir(uploadsDir, { recursive: true });
+      } catch (err) {
+        console.error('Erreur lors de la création du dossier uploads:', err);
+      }
+      
+      // Générer un nom de fichier unique et sécurisé
+      const timestamp = Date.now();
+      const randomId = crypto.randomBytes(8).toString('hex');
+      const fileExtension = path.extname(req.file.originalname) || '.jpg';
+      const sanitizedName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filename = `${timestamp}_${randomId}_${sanitizedName}${fileExtension}`;
+      const filepath = path.join(uploadsDir, filename);
+      
+      // Écrire le fichier sur le disque
+      await fsPromises.writeFile(filepath, req.file.buffer);
+      
+      // URL publique pour accéder à la photo
+      photoUrl = `/uploads/photos/${filename}`;
+    }
     
     // Créer une entrée dans la base de données
     const newPhoto = new Photo({
       url: photoUrl,
-      uploadedBy: name || 'Invité anonyme'
+      uploadedBy: name || 'Invité anonyme',
+      filename: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
     });
     
     await newPhoto.save();
     
+    console.log(`Photo sauvegardée: ${photoUrl} par ${name || 'Invité anonyme'}`);
     res.status(201).json({ success: true, photo: newPhoto });
   } catch (error) {
     console.error('Erreur lors du téléchargement de la photo:', error);
-    res.status(500).json({ success: false, message: 'Erreur lors du téléchargement de la photo' });
+    res.status(500).json({ success: false, message: 'Erreur lors du téléchargement de la photo: ' + error.message });
   }
 });
 
@@ -837,6 +867,18 @@ if (process.env.NODE_ENV === 'production') {
       app.use('/qr-codes', express.static(qrCodesPath));
       console.log(`📄 QR codes servis depuis: ${qrCodesPath}`);
     }
+    
+    // Servir les photos uploadées depuis public/uploads
+    const uploadsPath = path.join(__dirname, 'public/uploads');
+    if (!fs.existsSync(uploadsPath)) {
+      try {
+        fs.mkdirSync(uploadsPath, { recursive: true });
+      } catch (err) {
+        console.error('Erreur lors de la création du dossier uploads:', err);
+      }
+    }
+    app.use('/uploads', express.static(uploadsPath));
+    console.log(`📸 Photos servies depuis: ${uploadsPath}`);
     
     // Route catch-all pour React Router (doit être en dernier)
     app.get('*', (req, res, next) => {

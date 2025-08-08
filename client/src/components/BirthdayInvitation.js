@@ -1,6 +1,6 @@
 // client/src/components/BirthdayInvitation.js - Partie 1
 import React, { useState, useEffect } from 'react';
-import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info, Shield, Download, RefreshCw } from 'lucide-react';
+import { Camera, Calendar, MapPin, Clock, Users, Gift, Home, Send, Lock, Info, Shield, Download, RefreshCw, Upload, Heart, Eye } from 'lucide-react';
 import InteractiveMap from './InteractiveMap';
 
 const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
@@ -534,13 +534,13 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
               <h2 className="text-3xl font-bold mb-6 text-amber-800 border-b pb-2">Informations pratiques</h2>
               
               {!hasLocationAccess ? (
-                <div className="text-center py-8">
-                  <Lock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
-                  <h3 className="text-xl font-medium mb-2">Informations réservées aux invités confirmés</h3>
-                  <p className="mb-6 text-amber-700">Pour accéder aux détails complets, merci de confirmer votre présence.</p>
+                <div className="text-center py-6 md:py-8 px-4">
+                  <Lock className="w-12 h-12 md:w-16 md:h-16 mx-auto text-amber-500 mb-4" />
+                  <h3 className="text-lg sm:text-xl font-medium mb-2 leading-tight">Informations réservées aux invités confirmés</h3>
+                  <p className="mb-6 text-amber-700 text-sm sm:text-base px-2">Pour accéder aux détails complets, merci de confirmer votre présence.</p>
                   <button 
                     onClick={() => setCurrentSection('rsvp')}
-                    className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition">
+                    className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition text-base md:text-lg">
                     Confirmer ma présence
                   </button>
                 </div>
@@ -780,18 +780,98 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
         )}
 
         {/* Section Photos */}
-        {currentSection === 'photos' && (
-          <div className="max-w-3xl mx-auto bg-white bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl p-8 my-8">
-            <h2 className="text-3xl font-bold mb-6 text-amber-800 text-center">Partagez vos photos</h2>
-            
-            <div className="mb-8 text-center">
-              <Camera className="h-16 w-16 mx-auto text-amber-600 mb-4" />
-              <p className="text-lg mb-4">
-                Installez notre application pour partager vos photos en temps réel pendant l'événement !
-              </p>
+        {currentSection === 'photos' && <PhotosSection 
+          guestData={guestData}
+          installApp={installApp}
+          isInstallable={isInstallable}
+          isInstalling={isInstalling}
+          installButtonText={installButtonText}
+          installationMessage={installationMessage}
+        />}
+      </div>
+
+      <footer className="bg-amber-800 text-amber-50 py-6 mt-8 md:mt-12">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-sm sm:text-base">Nous avons hâte de célébrer ce moment avec vous !</p>
+          <p className="mt-2 text-amber-200 text-sm sm:text-base break-all">Pour toute question : michel.booh@gmail.com</p>
+          
+          <div className="mt-6 pt-4 border-t border-amber-700">
+            <a 
+              href="/scan" 
+              className="inline-flex items-center px-4 py-2 bg-amber-700 text-amber-100 rounded-lg hover:bg-amber-600 transition text-sm sm:text-base"
+            >
+              <span className="mr-2">📷</span>
+              Scanner un QR code
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+// Composant séparé pour la section photos
+const PhotosSection = ({ guestData, installApp, isInstallable, isInstalling, installButtonText, installationMessage }) => {
+  const [photos, setPhotos] = useState([]);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
+  
+  // Charger les photos existantes
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        const res = await fetch('/api/photos');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setPhotos(data.photos || []);
+          }
+        }
+      } catch (e) {
+        console.error('Erreur lors du chargement des photos:', e);
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    };
+    
+    fetchPhotos();
+    
+    // Actualiser toutes les 30 secondes
+    const interval = setInterval(fetchPhotos, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="max-w-4xl mx-auto bg-white bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 my-4 md:my-8">
+      <h2 className="text-2xl sm:text-3xl font-bold mb-4 md:mb-6 text-amber-800 text-center">Partagez vos photos</h2>
+      
+      {/* Actions de partage */}
+      <div className="mb-6 md:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Partage direct */}
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 sm:p-6 rounded-xl border border-amber-200">
+            <div className="text-center">
+              <Camera className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-amber-600 mb-3" />
+              <h3 className="text-lg sm:text-xl font-semibold text-amber-800 mb-2">Partager une photo</h3>
+              <p className="text-amber-700 mb-4 text-sm sm:text-base">Partagez vos moments en temps réel</p>
+              <a 
+                href="/photos" 
+                className="inline-flex items-center px-4 sm:px-6 py-2.5 sm:py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition transform hover:scale-105 text-sm sm:text-base w-full sm:w-auto justify-center"
+              >
+                <Upload size={16} className="mr-2" />
+                Ajouter une photo
+              </a>
+            </div>
+          </div>
+          
+          {/* Installation PWA */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-200">
+            <div className="text-center">
+              <Download className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-blue-600 mb-3" />
+              <h3 className="text-lg sm:text-xl font-semibold text-blue-800 mb-2">Application mobile</h3>
+              <p className="text-blue-700 mb-4 text-sm sm:text-base">Pour une meilleure expérience</p>
               
               {installationMessage && (
-                <div className={`p-3 mb-4 rounded ${
+                <div className={`p-2 sm:p-3 mb-4 rounded text-xs sm:text-sm ${
                   installationMessage.includes('succès') || installationMessage.includes('réussie') 
                     ? 'bg-green-100 text-green-700' 
                     : 'bg-amber-100 text-amber-700'
@@ -799,11 +879,11 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                   {installationMessage}
                 </div>
               )}
-        
+              
               <button 
                 onClick={installApp}
                 disabled={!isInstallable || isInstalling}
-                className={`px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg transition mb-6 flex items-center justify-center mx-auto ${
+                className={`inline-flex items-center px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition text-sm sm:text-base w-full sm:w-auto justify-center ${
                   !isInstallable || isInstalling ? 'opacity-50 cursor-not-allowed' : 'transform hover:scale-105'
                 }`}
               >
@@ -814,53 +894,84 @@ const BirthdayInvitation = ({ guestData, updateGuestData, isLoading }) => {
                   </>
                 ) : (
                   <>
-                    <Download size={18} className="mr-2" />
-                    {installButtonText}
+                    <Download size={16} className="mr-2" />
+                    {isInstallable ? 'Installer l\'app' : 'Application installée'}
                   </>
                 )}
               </button>
-        
+              
               {!isInstallable && (
-                <p className="text-sm text-amber-700 italic">
+                <p className="text-xs text-blue-600 mt-2 italic">
                   {window.matchMedia('(display-mode: standalone)').matches ? 
-                    "L'application est déjà installée sur votre appareil." : 
-                    "Votre navigateur ne prend pas en charge l'installation d'applications, ou l'application est déjà installée."}
+                    "Déjà installée !" : 
+                    "Installation non disponible"}
                 </p>
               )}
-
-              <p className="text-sm text-amber-700">
-                Disponible le jour de l'événement. Les photos apparaîtront ici en temps réel.
-              </p>
             </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {/* Placeholder pour les futures photos */}
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="aspect-square bg-amber-100 rounded-lg flex items-center justify-center">
-                  <p className="text-amber-400 text-xl font-light">Photo #{i}</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Galerie de photos */}
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-2xl font-semibold text-amber-800 flex items-center">
+            <Eye className="mr-2" size={24} />
+            Galerie partagée ({photos.length})
+          </h3>
+          {photos.length > 0 && (
+            <span className="text-amber-600 text-sm flex items-center">
+              <Heart size={16} className="mr-1" />
+              Merci pour ces beaux moments !
+            </span>
+          )}
+        </div>
+        
+        {isLoadingPhotos ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+            <span className="ml-3 text-amber-700">Chargement des photos...</span>
+          </div>
+        ) : photos.length === 0 ? (
+          <div className="text-center py-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+            <Camera className="h-16 w-16 mx-auto text-amber-400 mb-4" />
+            <h4 className="text-xl font-medium text-amber-700 mb-2">Aucune photo partagée</h4>
+            <p className="text-amber-600 mb-6">Soyez le premier à partager un moment de cette fête !</p>
+            <a 
+              href="/photos" 
+              className="inline-flex items-center px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl shadow transition"
+            >
+              <Camera size={18} className="mr-2" />
+              Partager la première photo
+            </a>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+            {photos.map((photo) => (
+              <div key={photo._id} className="group relative aspect-square rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+                <img 
+                  src={photo.url} 
+                  alt={`Partagée par ${photo.uploadedBy}`} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute bottom-2 left-2 right-2 text-white">
+                    <p className="font-medium text-sm truncate">{photo.uploadedBy}</p>
+                    <p className="text-xs opacity-75">
+                      {new Date(photo.createdAt).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
-
-      <footer className="bg-amber-800 text-amber-50 py-6 mt-12">
-        <div className="container mx-auto px-4 text-center">
-          <p>Nous avons hâte de célébrer ce moment avec vous !</p>
-          <p className="mt-2 text-amber-200">Pour toute question : michel.booh@gmail.com</p>
-          
-          <div className="mt-6 pt-4 border-t border-amber-700">
-            <a 
-              href="/scan" 
-              className="inline-flex items-center px-4 py-2 bg-amber-700 text-amber-100 rounded-lg hover:bg-amber-600 transition"
-            >
-              <span className="mr-2">📷</span>
-              Scanner un QR code
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

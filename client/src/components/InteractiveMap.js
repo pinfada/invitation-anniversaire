@@ -1,5 +1,5 @@
 // client/src/components/InteractiveMap.js - Version Leaflet
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { MapPin, ExternalLink, Navigation, Phone, Compass } from 'lucide-react';
 
 const InteractiveMap = ({ locationDetails }) => {
@@ -10,22 +10,26 @@ const InteractiveMap = ({ locationDetails }) => {
   const [userLocation, setUserLocation] = useState(null);
   const [distance, setDistance] = useState(null);
 
-  // Configuration de la carte
-  const eventLocation = locationDetails?.location?.coordinates || { lat: 46.1603986, lng: -1.1770363 };
-  const locationName = locationDetails?.location?.name || "Villa pour les vacances";
-  const locationAddress = locationDetails?.location?.address || "18 Rue du Stade, 17000 La Rochelle, France, La Rochelle";
+  // Configuration de la carte (mémorisée pour stabiliser les dépendances)
+  const eventLocation = useMemo(() => (
+    locationDetails?.location?.coordinates || { lat: 46.1603986, lng: -1.1770363 }
+  ), [locationDetails]);
+  const locationName = useMemo(() => (
+    locationDetails?.location?.name || "Villa pour les vacances"
+  ), [locationDetails]);
+  const locationAddress = useMemo(() => (
+    locationDetails?.location?.address || "18 Rue du Stade, 17000 La Rochelle, France, La Rochelle"
+  ), [locationDetails]);
+  const accessCode = useMemo(() => (
+    locationDetails?.location?.accessCode || "1234"
+  ), [locationDetails]);
 
   // Charger Leaflet CSS et JS
   useEffect(() => {
     loadLeafletResources();
   }, []);
 
-  // Initialiser la carte quand les ressources sont chargées
-  useEffect(() => {
-    if (window.L && mapRef.current && !leafletMapRef.current) {
-      initializeMap();
-    }
-  }, [isMapLoaded, locationDetails]);
+  // L'initialisation de la carte est gérée plus bas, après la déclaration de initializeMap
 
   const loadLeafletResources = async () => {
     try {
@@ -59,7 +63,7 @@ const InteractiveMap = ({ locationDetails }) => {
     }
   };
 
-  const initializeMap = () => {
+  const initializeMap = useCallback(() => {
     if (!window.L || !mapRef.current || leafletMapRef.current) return;
 
     try {
@@ -113,8 +117,8 @@ const InteractiveMap = ({ locationDetails }) => {
           <p style="margin: 0 0 8px 0; color: #374151; font-size: 14px;">
             ${locationAddress}
           </p>
-          <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px;">
-            Code d'accès: <strong style="color: #d97706;">${locationDetails?.location?.accessCode || "1234"}</strong>
+           <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px;">
+            Code d'accès: <strong style="color: #d97706;">${accessCode}</strong>
           </p>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button onclick="openDirections('${locationAddress}')" style="
@@ -226,7 +230,7 @@ const InteractiveMap = ({ locationDetails }) => {
             map.fitBounds(group.getBounds().pad(0.1));
 
             // Ajouter une ligne entre les deux points
-            const polyline = window.L.polyline([
+            window.L.polyline([
               [position.coords.latitude, position.coords.longitude],
               [eventLocation.lat, eventLocation.lng]
             ], {
@@ -257,7 +261,14 @@ const InteractiveMap = ({ locationDetails }) => {
       console.error('Erreur lors de l\'initialisation de la carte:', error);
       setMapError('Erreur lors de l\'initialisation de la carte');
     }
-  };
+  }, [eventLocation, locationName, locationAddress, accessCode]);
+
+  // Initialiser la carte quand les ressources sont chargées
+  useEffect(() => {
+    if (window.L && mapRef.current && !leafletMapRef.current) {
+      initializeMap();
+    }
+  }, [isMapLoaded, initializeMap]);
 
   // Calculer la distance entre deux points
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -316,7 +327,7 @@ const InteractiveMap = ({ locationDetails }) => {
         <div 
           ref={mapRef} 
           className="aspect-video rounded-lg shadow-lg overflow-hidden"
-          style={{ minHeight: '350px', zIndex: 1 }}
+          style={{ minHeight: '300px', zIndex: 1 }}
         />
         
         {!isMapLoaded && (
@@ -330,79 +341,79 @@ const InteractiveMap = ({ locationDetails }) => {
 
         {/* Contrôles de la carte */}
         {isMapLoaded && (
-          <div className="absolute top-3 right-3 flex flex-col gap-2 z-20">
+          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-col gap-1.5 sm:gap-2 z-20">
             {userLocation && (
               <button
                 onClick={centerOnUser}
-                className="bg-white p-2 rounded-lg shadow-md hover:bg-gray-50 transition"
+                className="bg-white p-1.5 sm:p-2 rounded-lg shadow-md hover:bg-gray-50 transition active:bg-gray-100"
                 title="Centrer sur ma position"
               >
-                <Navigation className="h-4 w-4 text-blue-600" />
+                <Navigation className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600" />
               </button>
             )}
             <button
               onClick={centerOnEvent}
-              className="bg-white p-2 rounded-lg shadow-md hover:bg-gray-50 transition"
+              className="bg-white p-1.5 sm:p-2 rounded-lg shadow-md hover:bg-gray-50 transition active:bg-gray-100"
               title="Centrer sur l'événement"
             >
-              <MapPin className="h-4 w-4 text-amber-600" />
+              <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
             </button>
           </div>
         )}
       </div>
 
       {/* Informations et actions rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         {/* Informations de distance */}
         {userLocation && distance && (
-          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+          <div className="bg-amber-50 p-3 md:p-4 rounded-lg border border-amber-200">
             <div className="flex items-center mb-2">
-              <Compass className="h-5 w-5 text-amber-600 mr-2" />
-              <h4 className="font-semibold text-amber-800">Distance</h4>
+              <Compass className="h-4 w-4 md:h-5 md:w-5 text-amber-600 mr-2 flex-shrink-0" />
+              <h4 className="font-semibold text-amber-800 text-sm md:text-base">Distance</h4>
             </div>
-            <p className="text-amber-700">Environ {distance} de votre position</p>
-            <p className="text-amber-600 text-sm mt-1">Distance à vol d'oiseau</p>
+            <p className="text-amber-700 text-sm md:text-base">Environ {distance} de votre position</p>
+            <p className="text-amber-600 text-xs md:text-sm mt-1">Distance à vol d'oiseau</p>
           </div>
         )}
 
         {/* Actions rapides */}
-        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-          <div className="flex items-center mb-3">
-            <MapPin className="h-5 w-5 text-amber-600 mr-2" />
-            <h4 className="font-semibold text-amber-800">Actions rapides</h4>
+        <div className="bg-amber-50 p-3 md:p-4 rounded-lg border border-amber-200">
+          <div className="flex items-center mb-2 md:mb-3">
+            <MapPin className="h-4 w-4 md:h-5 md:w-5 text-amber-600 mr-2 flex-shrink-0" />
+            <h4 className="font-semibold text-amber-800 text-sm md:text-base">Actions rapides</h4>
           </div>
           <div className="space-y-2">
             <button
               onClick={() => window.openDirections(locationAddress)}
-              className="flex items-center w-full px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm"
+              className="flex items-center w-full px-3 py-2.5 md:py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 active:bg-amber-800 transition text-sm touch-manipulation"
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Ouvrir l'itinéraire
+              <ExternalLink className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span>Ouvrir l'itinéraire</span>
             </button>
             
             <button
               onClick={() => window.shareLocation(locationAddress)}
-              className="flex items-center w-full px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm"
+              className="flex items-center w-full px-3 py-2.5 md:py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition text-sm touch-manipulation"
             >
-              <Phone className="h-4 w-4 mr-2" />
-              Partager l'adresse
+              <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span>Partager l'adresse</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Instructions d'accès */}
-      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <h4 className="font-semibold text-blue-800 mb-2">Instructions d'accès</h4>
-        <div className="text-sm text-blue-700 space-y-1">
+      <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200">
+        <h4 className="font-semibold text-blue-800 mb-2 text-sm md:text-base">Instructions d'accès</h4>
+        <div className="text-xs md:text-sm text-blue-700 space-y-1 leading-relaxed">
           <p>• {locationDetails?.location?.parkingInfo || "Parking privé disponible sur place"}</p>
           <p>• Code d'accès: <strong className="text-blue-800">{locationDetails?.location?.accessCode || "1234"}</strong></p>
-          <p>• En cas de problème: <a href="mailto:michel.booh@gmail.com" className="underline hover:text-blue-800">michel.booh@gmail.com</a></p>
+          <p className="break-words">• En cas de problème: <a href="mailto:michel.booh@gmail.com" className="underline hover:text-blue-800 break-all">michel.booh@gmail.com</a></p>
         </div>
       </div>
 
       {/* Informations sur la carte */}
-      <div className="text-xs text-gray-500 text-center">
+      <div className="text-xs text-gray-500 text-center px-2 leading-relaxed">
         🗺️ Carte fournie par OpenStreetMap - Données © contributeurs OpenStreetMap
       </div>
     </div>
