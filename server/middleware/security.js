@@ -11,8 +11,9 @@ const configureHelmet = () => {
         scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'", "https://api.cloudinary.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https://firebasestorage.googleapis.com"],
+        connectSrc: ["'self'", "data:", "https://api.cloudinary.com", "https://firebasestorage.googleapis.com"],
+        workerSrc: ["'self'", "blob:"],
       }
     },
     xssFilter: true,

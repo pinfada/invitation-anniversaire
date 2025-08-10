@@ -73,7 +73,7 @@ const PhotoShare = ({ guestData }) => {
       const options = {
         maxSizeMB: 1,             // Max 1MB
         maxWidthOrHeight: 1200,   // Redimensionnement préservant ratio
-        useWebWorker: true,       // Utiliser un thread séparé
+        useWebWorker: false,      // Désactiver pour éviter les problèmes CSP
         onProgress: (p) => setCompressionProgress(10 + Math.round(p * 80))
       };
       
@@ -116,10 +116,18 @@ const PhotoShare = ({ guestData }) => {
     
     setIsUploading(true);
     try {
-      // Convertir dataURL -> Blob
-      const response = await fetch(previewPhoto.src);
-      const blob = await response.blob();
-      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+      // Convertir dataURL -> Blob sans fetch
+      const dataUrl = previewPhoto.src;
+      const arr = dataUrl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: mime || 'image/jpeg' });
 
       // Préparer FormData
       const formData = new FormData();
