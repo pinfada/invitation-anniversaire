@@ -693,7 +693,6 @@ const GuestManager = () => {
           </div>
         </div>
       </div>
-    </div>
     </>
   );
 };
